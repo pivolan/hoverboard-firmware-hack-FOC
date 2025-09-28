@@ -16,7 +16,7 @@ jobs:
     # Build with make
     - name: make
       env: 
-        VARIANT: VARIANT_ADC
+        VARIANT: VARIANT_PWM
       run: make
     # Build with Platformio
     - name: PlatformIO Install

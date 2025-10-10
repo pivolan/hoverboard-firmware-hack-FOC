@@ -293,6 +293,36 @@
 #endif
 
 
+// Multiple tap detection: default DOUBLE Tap on Brake pedal (4 pulses)
+#define MULTIPLE_TAP_NR           2 * 2       // [-] Define tap number: MULTIPLE_TAP_NR = number_of_taps * 2, number_of_taps = 1 (for single taping), 2 (for double tapping), 3 (for triple tapping), etc...
+#define MULTIPLE_TAP_HI           600         // [-] Multiple tap detection High hysteresis threshold
+#define MULTIPLE_TAP_LO           200         // [-] Multiple tap detection Low hysteresis threshold
+#define MULTIPLE_TAP_TIMEOUT      2000        // [ms] Multiple tap detection Timeout period. The taps need to happen within this time window to be accepted.
+// ######################## END OF VARIANT_HOVERCAR SETTINGS #########################
+
+
+// ########################### UART SETIINGS ############################
+#if defined(FEEDBACK_SERIAL_USART2) || defined(CONTROL_SERIAL_USART2) || defined(DEBUG_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART2) || \
+    defined(FEEDBACK_SERIAL_USART3) || defined(CONTROL_SERIAL_USART3) || defined(DEBUG_SERIAL_USART3) || defined(SIDEBOARD_SERIAL_USART3)
+  #define SERIAL_START_FRAME      0xABCD                  // [-] Start frame definition for serial commands
+  #define SERIAL_BUFFER_SIZE      64                      // [bytes] Size of Serial Rx buffer. Make sure it is always larger than the structure size
+  #define SERIAL_TIMEOUT          160                     // [-] Serial timeout duration for the received data. 160 ~= 0.8 sec. Calculation: 0.8 sec / 0.005 sec
+#endif
+#if defined(FEEDBACK_SERIAL_USART2) || defined(CONTROL_SERIAL_USART2) || defined(DEBUG_SERIAL_USART2) || defined(SIDEBOARD_SERIAL_USART2)
+  #ifndef USART2_BAUD
+    #define USART2_BAUD           115200                  // UART2 baud rate (long wired cable)
+  #endif
+  #define USART2_WORDLENGTH       UART_WORDLENGTH_8B      // UART_WORDLENGTH_8B or UART_WORDLENGTH_9B
+#endif
+#if defined(FEEDBACK_SERIAL_USART3) || defined(CONTROL_SERIAL_USART3) || defined(DEBUG_SERIAL_USART3) || defined(SIDEBOARD_SERIAL_USART3)
+  #ifndef USART3_BAUD
+    #define USART3_BAUD           115200                  // UART3 baud rate (short wired cable)
+  #endif
+  #define USART3_WORDLENGTH       UART_WORDLENGTH_8B      // UART_WORDLENGTH_8B or UART_WORDLENGTH_9B
+#endif
+// ########################### UART SETIINGS ############################
+
+
 // ############################### APPLY DEFAULT SETTINGS ###############################
 #ifndef RATE
   #define RATE DEFAULT_RATE

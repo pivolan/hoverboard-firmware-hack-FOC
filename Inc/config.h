@@ -147,14 +147,14 @@
 #define MOTOR_RIGHT_ENA                 // [-] Enable RIGHT motor. Comment-out if this motor is not needed to be operational
 
 // Control selections
-#define CTRL_TYP_SEL    FOC_CTRL        // [-] Control type selection: COM_CTRL, SIN_CTRL, FOC_CTRL (default)
-#define CTRL_MOD_REQ    SPD_MODE        // [-] Control mode request: OPEN_MODE, VLT_MODE (default), SPD_MODE, TRQ_MODE. Note: SPD_MODE and TRQ_MODE are only available for CTRL_FOC!
+#define CTRL_TYP_SEL    SIN_CTRL        // [-] Control type selection: COM_CTRL, SIN_CTRL, FOC_CTRL (default)
+#define CTRL_MOD_REQ    VLT_MODE        // [-] Control mode request: OPEN_MODE, VLT_MODE (default), SPD_MODE, TRQ_MODE. Note: SPD_MODE and TRQ_MODE are only available for CTRL_FOC!
 #define DIAG_ENA        1               // [-] Motor Diagnostics enable flag: 0 = Disabled, 1 = Enabled (default)
 
 // Custom SPD_MODE behavior for coasting and smooth acceleration
-#define COAST_MODE_ENABLE               // [-] Enable coasting mode: no active speed holding, smooth acceleration
+//#define COAST_MODE_ENABLE             // [-] Enable coasting mode: no active speed holding, smooth acceleration (only for SPD_MODE)
 #define COAST_ACCEL_RATE      50        // [rpm/cycle] Acceleration rate limit (lower = smoother). Default: 100
-#define COAST_NO_BRAKE                  // [-] No active braking when current speed > target speed
+//#define COAST_NO_BRAKE                // [-] No active braking when current speed > target speed (only for SPD_MODE)
 
 // Speed limiting for SIN_CTRL and VLT_MODE (software speed limiter)
 #define SPEED_LIMIT_ENABLE              // [-] Enable software speed limiting for non-SPD modes

@@ -135,3 +135,26 @@ pio device monitor -b 115200
 Adjust `COAST_ACCEL_RATE` in config.h:156:
 - Higher value (e.g., 200) = faster acceleration
 - Lower value (e.g., 50) = smoother, gentler acceleration
+
+## Software Speed Limiter for SIN_CTRL and VLT_MODE
+
+**Enables speed limiting for control modes that don't have built-in speed control:**
+
+### Features (config.h lines 159-161):
+- `SPEED_LIMIT_ENABLE`: Enable software speed limiting for VLT_MODE and SIN_CTRL
+- `SPEED_LIMIT_MARGIN`: RPM margin below N_MOT_MAX where power reduction begins (default: 10)
+
+### How it works:
+SPD_MODE and TRQ_MODE are **only available with FOC_CTRL**. For SIN_CTRL or when using VLT_MODE, this provides software-based speed limiting:
+
+1. **Below (N_MOT_MAX - MARGIN)** → Full power available
+2. **Between (N_MOT_MAX - MARGIN) and N_MOT_MAX** → Power gradually reduced (linear ramp down)
+3. **At or above N_MOT_MAX** → Power cut to 0
+
+### Example:
+With `N_MOT_MAX = 150` and `SPEED_LIMIT_MARGIN = 10`:
+- 0-140 RPM: 100% power
+- 140-150 RPM: Power linearly reduced from 100% to 0%
+- 150+ RPM: 0% power (coasting)
+
+This allows safe operation of SIN_CTRL with speed protection!

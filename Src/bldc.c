@@ -178,33 +178,60 @@ void DMA1_Channel1_IRQHandler(void) {
     /* Coast mode processing for SPD_MODE */
     static int16_t pwml_smooth = 0;
     int16_t pwml_target = pwml;
+    int16_t current_speed = rtY_Left.n_mot;  // Current motor speed in RPM
+    
     #ifdef COAST_MODE_ENABLE
     if (ctrlModReq == SPD_MODE) {
-      int16_t current_speed = rtY_Left.n_mot;  // Current motor speed in RPM
-      
-      // If input is zero, coast (no target speed)
+      // If input is zero, coast (set target to current speed to avoid braking)
       if (pwml_target == 0) {
-        pwml_smooth = 0;
+        pwml_smooth = current_speed;  // Match current speed = coast
+        pwml_target = current_speed;
       } 
-      // If current speed is higher than target, don't brake actively
+      // If current speed is higher than target, don't brake actively - just hold current speed
       #ifdef COAST_NO_BRAKE
       else if ((pwml_target > 0 && current_speed > pwml_target) ||
                (pwml_target < 0 && current_speed < pwml_target)) {
-        pwml_smooth = 0;  // Coast, don't fight the momentum
+        pwml_smooth = current_speed;  // Match current speed = coast
+        pwml_target = current_speed;
       }
       #endif
       // Otherwise, smoothly accelerate towards target
       else {
         int16_t speed_diff = pwml_target - pwml_smooth;
-        if (speed_diff > COAST_ACCEL_RATE) {
-          pwml_smooth += COAST_ACCEL_RATE;
-        } else if (speed_diff < -COAST_ACCEL_RATE) {
-          pwml_smooth -= COAST_ACCEL_RATE;
+        if (ABS(speed_diff) > COAST_ACCEL_RATE) {
+          if (speed_diff > 0) {
+            pwml_smooth += COAST_ACCEL_RATE;
+          } else {
+            pwml_smooth -= COAST_ACCEL_RATE;
+          }
         } else {
           pwml_smooth = pwml_target;
         }
+        pwml_target = pwml_smooth;
       }
-      pwml_target = pwml_smooth;
+    }
+    #endif
+    
+    #ifdef SPEED_LIMIT_ENABLE
+    // Software speed limiter for VLT_MODE and SIN_CTRL
+    if (ctrlModReq == VLT_MODE || rtP_Left.z_ctrlTypSel == SIN_CTRL) {
+      int16_t abs_speed = ABS(current_speed);
+      int16_t speed_limit = N_MOT_MAX - SPEED_LIMIT_MARGIN;
+      
+      // If approaching speed limit, reduce input proportionally
+      if (abs_speed > speed_limit) {
+        int16_t over_limit = abs_speed - speed_limit;
+        int16_t reduction = (over_limit * 1000) / SPEED_LIMIT_MARGIN;  // Scale 0-1000
+        if (reduction > 1000) reduction = 1000;
+        
+        // Reduce input: at speed_limit = 100% input, at N_MOT_MAX = 0% input
+        pwml_target = (pwml_target * (1000 - reduction)) / 1000;
+      }
+      
+      // Hard limit: if at or above N_MOT_MAX, cut power completely
+      if (abs_speed >= N_MOT_MAX) {
+        pwml_target = 0;
+      }
     }
     #endif
 
@@ -249,33 +276,60 @@ void DMA1_Channel1_IRQHandler(void) {
     /* Coast mode processing for SPD_MODE */
     static int16_t pwmr_smooth = 0;
     int16_t pwmr_target = pwmr;
+    int16_t current_speed = rtY_Right.n_mot;  // Current motor speed in RPM
+    
     #ifdef COAST_MODE_ENABLE
     if (ctrlModReq == SPD_MODE) {
-      int16_t current_speed = rtY_Right.n_mot;  // Current motor speed in RPM
-      
-      // If input is zero, coast (no target speed)
+      // If input is zero, coast (set target to current speed to avoid braking)
       if (pwmr_target == 0) {
-        pwmr_smooth = 0;
+        pwmr_smooth = current_speed;  // Match current speed = coast
+        pwmr_target = current_speed;
       } 
-      // If current speed is higher than target, don't brake actively
+      // If current speed is higher than target, don't brake actively - just hold current speed
       #ifdef COAST_NO_BRAKE
       else if ((pwmr_target > 0 && current_speed > pwmr_target) ||
                (pwmr_target < 0 && current_speed < pwmr_target)) {
-        pwmr_smooth = 0;  // Coast, don't fight the momentum
+        pwmr_smooth = current_speed;  // Match current speed = coast
+        pwmr_target = current_speed;
       }
       #endif
       // Otherwise, smoothly accelerate towards target
       else {
         int16_t speed_diff = pwmr_target - pwmr_smooth;
-        if (speed_diff > COAST_ACCEL_RATE) {
-          pwmr_smooth += COAST_ACCEL_RATE;
-        } else if (speed_diff < -COAST_ACCEL_RATE) {
-          pwmr_smooth -= COAST_ACCEL_RATE;
+        if (ABS(speed_diff) > COAST_ACCEL_RATE) {
+          if (speed_diff > 0) {
+            pwmr_smooth += COAST_ACCEL_RATE;
+          } else {
+            pwmr_smooth -= COAST_ACCEL_RATE;
+          }
         } else {
           pwmr_smooth = pwmr_target;
         }
+        pwmr_target = pwmr_smooth;
       }
-      pwmr_target = pwmr_smooth;
+    }
+    #endif
+    
+    #ifdef SPEED_LIMIT_ENABLE
+    // Software speed limiter for VLT_MODE and SIN_CTRL
+    if (ctrlModReq == VLT_MODE || rtP_Right.z_ctrlTypSel == SIN_CTRL) {
+      int16_t abs_speed = ABS(current_speed);
+      int16_t speed_limit = N_MOT_MAX - SPEED_LIMIT_MARGIN;
+      
+      // If approaching speed limit, reduce input proportionally
+      if (abs_speed > speed_limit) {
+        int16_t over_limit = abs_speed - speed_limit;
+        int16_t reduction = (over_limit * 1000) / SPEED_LIMIT_MARGIN;  // Scale 0-1000
+        if (reduction > 1000) reduction = 1000;
+        
+        // Reduce input: at speed_limit = 100% input, at N_MOT_MAX = 0% input
+        pwmr_target = (pwmr_target * (1000 - reduction)) / 1000;
+      }
+      
+      // Hard limit: if at or above N_MOT_MAX, cut power completely
+      if (abs_speed >= N_MOT_MAX) {
+        pwmr_target = 0;
+      }
     }
     #endif
 

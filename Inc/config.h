@@ -153,8 +153,12 @@
 
 // Custom SPD_MODE behavior for coasting and smooth acceleration
 #define COAST_MODE_ENABLE               // [-] Enable coasting mode: no active speed holding, smooth acceleration
-#define COAST_ACCEL_RATE      50       // [rpm/cycle] Acceleration rate limit (lower = smoother). Default: 100
+#define COAST_ACCEL_RATE      50        // [rpm/cycle] Acceleration rate limit (lower = smoother). Default: 100
 #define COAST_NO_BRAKE                  // [-] No active braking when current speed > target speed
+
+// Speed limiting for SIN_CTRL and VLT_MODE (software speed limiter)
+#define SPEED_LIMIT_ENABLE              // [-] Enable software speed limiting for non-SPD modes
+#define SPEED_LIMIT_MARGIN      10      // [rpm] Margin below N_MOT_MAX where input starts reducing (default: 10)
 
 // Limitation settings
 #define I_MOT_MAX       15              // [A] Maximum single motor current limit

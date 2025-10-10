@@ -1662,23 +1662,13 @@ void filtLowPass32(int32_t u, uint16_t coef, int32_t *y) {
 void rateLimiter16(int16_t u, int16_t rate, int16_t *y) {
   int16_t q0;
   int16_t q1;
-  int16_t rate_accel;
-  int16_t rate_brake;
 
   q0 = (u << 4)  - *y;
 
-  // Asymmetric rate limiting: slow acceleration, fast braking
-  rate_accel = rate / 4;  // Acceleration 4x slower than original
-  rate_brake = rate;  // Braking 2x faster than original
-  
-  if (q0 > 0) {
-    // Accelerating
-    if (q0 > rate_accel) {
-      q0 = rate_accel;
-    }
+  if (q0 > rate) {
+    q0 = rate;
   } else {
-    // Braking or reversing
-    q1 = -rate_brake;
+    q1 = -rate;
     if (q0 < q1) {
       q0 = q1;
     }

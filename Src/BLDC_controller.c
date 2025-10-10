@@ -2602,17 +2602,12 @@ void BLDC_controller_step(RT_MODEL *const rtM)
           /* End of Switch: '<S61>/Switch2' */
 
           /* Sum: '<S61>/Sum3' */
-          /* Dead zone for speed control: ignore small speed commands (5 RPM = 80 in fixdt(1,16,4)) */
-          if (abs(rtb_Saturation) < 80) {  // If target speed < 5 RPM
-            rtb_Gain3 = 0;  // Disable PI controller - no speed control
+          rtb_Gain3 = rtb_Saturation - Switch2;
+          if (rtb_Gain3 > 32767) {
+            rtb_Gain3 = 32767;
           } else {
-            rtb_Gain3 = rtb_Saturation - Switch2;
-            if (rtb_Gain3 > 32767) {
-              rtb_Gain3 = 32767;
-            } else {
-              if (rtb_Gain3 < -32768) {
-                rtb_Gain3 = -32768;
-              }
+            if (rtb_Gain3 < -32768) {
+              rtb_Gain3 = -32768;
             }
           }
 

@@ -175,10 +175,43 @@ void DMA1_Channel1_IRQHandler(void) {
     uint8_t hall_vl = !(LEFT_HALL_V_PORT->IDR & LEFT_HALL_V_PIN);
     uint8_t hall_wl = !(LEFT_HALL_W_PORT->IDR & LEFT_HALL_W_PIN);
 
+    /* Coast mode processing for SPD_MODE */
+    static int16_t pwml_smooth = 0;
+    int16_t pwml_target = pwml;
+    #ifdef COAST_MODE_ENABLE
+    if (ctrlModReq == SPD_MODE) {
+      int16_t current_speed = rtY_Left.n_mot;  // Current motor speed in RPM
+      
+      // If input is zero, coast (no target speed)
+      if (pwml_target == 0) {
+        pwml_smooth = 0;
+      } 
+      // If current speed is higher than target, don't brake actively
+      #ifdef COAST_NO_BRAKE
+      else if ((pwml_target > 0 && current_speed > pwml_target) ||
+               (pwml_target < 0 && current_speed < pwml_target)) {
+        pwml_smooth = 0;  // Coast, don't fight the momentum
+      }
+      #endif
+      // Otherwise, smoothly accelerate towards target
+      else {
+        int16_t speed_diff = pwml_target - pwml_smooth;
+        if (speed_diff > COAST_ACCEL_RATE) {
+          pwml_smooth += COAST_ACCEL_RATE;
+        } else if (speed_diff < -COAST_ACCEL_RATE) {
+          pwml_smooth -= COAST_ACCEL_RATE;
+        } else {
+          pwml_smooth = pwml_target;
+        }
+      }
+      pwml_target = pwml_smooth;
+    }
+    #endif
+
     /* Set motor inputs here */
     rtU_Left.b_motEna     = enableFin;
     rtU_Left.z_ctrlModReq = ctrlModReq;  
-    rtU_Left.r_inpTgt     = pwml;
+    rtU_Left.r_inpTgt     = pwml_target;
     rtU_Left.b_hallA      = hall_ul;
     rtU_Left.b_hallB      = hall_vl;
     rtU_Left.b_hallC      = hall_wl;
@@ -213,10 +246,43 @@ void DMA1_Channel1_IRQHandler(void) {
     uint8_t hall_vr = !(RIGHT_HALL_V_PORT->IDR & RIGHT_HALL_V_PIN);
     uint8_t hall_wr = !(RIGHT_HALL_W_PORT->IDR & RIGHT_HALL_W_PIN);
 
+    /* Coast mode processing for SPD_MODE */
+    static int16_t pwmr_smooth = 0;
+    int16_t pwmr_target = pwmr;
+    #ifdef COAST_MODE_ENABLE
+    if (ctrlModReq == SPD_MODE) {
+      int16_t current_speed = rtY_Right.n_mot;  // Current motor speed in RPM
+      
+      // If input is zero, coast (no target speed)
+      if (pwmr_target == 0) {
+        pwmr_smooth = 0;
+      } 
+      // If current speed is higher than target, don't brake actively
+      #ifdef COAST_NO_BRAKE
+      else if ((pwmr_target > 0 && current_speed > pwmr_target) ||
+               (pwmr_target < 0 && current_speed < pwmr_target)) {
+        pwmr_smooth = 0;  // Coast, don't fight the momentum
+      }
+      #endif
+      // Otherwise, smoothly accelerate towards target
+      else {
+        int16_t speed_diff = pwmr_target - pwmr_smooth;
+        if (speed_diff > COAST_ACCEL_RATE) {
+          pwmr_smooth += COAST_ACCEL_RATE;
+        } else if (speed_diff < -COAST_ACCEL_RATE) {
+          pwmr_smooth -= COAST_ACCEL_RATE;
+        } else {
+          pwmr_smooth = pwmr_target;
+        }
+      }
+      pwmr_target = pwmr_smooth;
+    }
+    #endif
+
     /* Set motor inputs here */
     rtU_Right.b_motEna      = enableFin;
     rtU_Right.z_ctrlModReq  = ctrlModReq;
-    rtU_Right.r_inpTgt      = pwmr;
+    rtU_Right.r_inpTgt      = pwmr_target;
     rtU_Right.b_hallA       = hall_ur;
     rtU_Right.b_hallB       = hall_vr;
     rtU_Right.b_hallC       = hall_wr;

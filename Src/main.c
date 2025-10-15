@@ -352,6 +352,18 @@ int main(void) {
 
 
       // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
+      
+      // Disable motor control when throttle is fully released to allow free wheel rotation
+      if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
+        enable = 0;
+      }
+      
+      // Re-enable motors when throttle is pressed (allow immediate response)
+      if (enable == 0 && !rtY_Left.z_errCode && !rtY_Right.z_errCode && 
+          (ABS(input1[inIdx].cmd) >= 10 || ABS(input2[inIdx].cmd) >= 10)) {
+        enable = 1;
+      }
+      
       #ifdef INVERT_R_DIRECTION
         pwmr = cmdR;
       #else
@@ -362,6 +374,12 @@ int main(void) {
       #else
         pwml = cmdL;
       #endif
+      
+      // Set PWM to zero when disabled
+      if (enable == 0) {
+        pwml = 0;
+        pwmr = 0;
+      }
     #endif
 
     #ifdef VARIANT_TRANSPOTTER

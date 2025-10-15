@@ -158,6 +158,10 @@ static int16_t    speed;                // local variable for speed. -1000 to 10
   static int32_t  speedFixdt;           // local fixed-point variable for speed low-pass filter
 #endif
 
+static int16_t currentLimit = 0;        // Current limit for soft start/stop
+static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximum current in fixdt(1,16,4)
+static const int16_t currentRampStep = ((I_MOT_MAX * A2BIT_CONV) << 4) / 50; // Ramp up/down in 50 steps (~250ms @ 5ms loop)
+
 static uint32_t    buzzerTimer_prev = 0;
 static uint32_t    inactivity_timeout_counter;
 static MultipleTap MultipleTapBrake;    // define multiple tap functionality for the Brake pedal
@@ -353,15 +357,32 @@ int main(void) {
 
       // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
       
-      // Disable motor control when throttle is fully released to allow free wheel rotation
+      // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
       if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
-        enable = 0;
+        // Ramp down current limit when throttle released
+        if (currentLimit > 0) {
+          currentLimit -= currentRampStep;
+          if (currentLimit < 0) currentLimit = 0;
+          rtP_Left.i_max = rtP_Right.i_max = currentLimit;
+        } else {
+          // Fully stopped - disable motors
+          enable = 0;
+        }
+      } else if (enable == 1) {
+        // Ramp up current limit when throttle pressed
+        if (currentLimit < maxCurrentLimit) {
+          currentLimit += currentRampStep;
+          if (currentLimit > maxCurrentLimit) currentLimit = maxCurrentLimit;
+          rtP_Left.i_max = rtP_Right.i_max = currentLimit;
+        }
       }
       
-      // Re-enable motors when throttle is pressed (allow immediate response)
+      // Re-enable motors when throttle is pressed (with soft start)
       if (enable == 0 && !rtY_Left.z_errCode && !rtY_Right.z_errCode && 
           (ABS(input1[inIdx].cmd) >= 10 || ABS(input2[inIdx].cmd) >= 10)) {
         enable = 1;
+        currentLimit = currentRampStep;  // Start from minimal current
+        rtP_Left.i_max = rtP_Right.i_max = currentLimit;
       }
       
       #ifdef INVERT_R_DIRECTION

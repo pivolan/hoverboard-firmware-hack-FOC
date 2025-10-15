@@ -356,6 +356,7 @@ int main(void) {
       // Disable motor control when throttle is fully released to allow free wheel rotation
       if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
         enable = 0;
+        beepCount(0, 0, 0);  // Force stop all beeps when motors disabled
       }
       
       // Re-enable motors when throttle is pressed (allow immediate response)
@@ -571,21 +572,21 @@ int main(void) {
       #endif
       poweroff();
     } else if (rtY_Left.z_errCode || rtY_Right.z_errCode) {                                           // 1 beep (low pitch): Motor error, disable motors
-      enable = 0;
       if (enable) beepCount(1, 24, 1);
-    } else if (timeoutFlgADC) {                                                                       // 2 beeps (low pitch): ADC timeout
-      if (enable) beepCount(2, 24, 1);
-    } else if (timeoutFlgSerial) {                                                                    // 3 beeps (low pitch): Serial timeout
-      if (enable) beepCount(3, 24, 1);
-    } else if (timeoutFlgGen) {                                                                       // 4 beeps (low pitch): General timeout (PPM, PWM, Nunchuk)
-      if (enable) beepCount(4, 24, 1);
-    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING) {                             // 5 beeps (low pitch): Mainboard temperature warning
+      enable = 0;
+    } else if (timeoutFlgADC && enable) {                                                             // 2 beeps (low pitch): ADC timeout
+      beepCount(2, 24, 1);
+    } else if (timeoutFlgSerial && enable) {                                                          // 3 beeps (low pitch): Serial timeout
+      beepCount(3, 24, 1);
+    } else if (timeoutFlgGen && enable) {                                                             // 4 beeps (low pitch): General timeout (PPM, PWM, Nunchuk)
+      beepCount(4, 24, 1);
+    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING && enable) {                  // 5 beeps (low pitch): Mainboard temperature warning
       beepCount(5, 24, 1);
-    } else if (BAT_LVL1_ENABLE && batVoltage < BAT_LVL1) {                                            // 1 beep fast (medium pitch): Low bat 1
+    } else if (BAT_LVL1_ENABLE && batVoltage < BAT_LVL1 && enable) {                                 // 1 beep fast (medium pitch): Low bat 1
       beepCount(0, 10, 6);
-    } else if (BAT_LVL2_ENABLE && batVoltage < BAT_LVL2) {                                            // 1 beep slow (medium pitch): Low bat 2
+    } else if (BAT_LVL2_ENABLE && batVoltage < BAT_LVL2 && enable) {                                 // 1 beep slow (medium pitch): Low bat 2
       beepCount(0, 10, 30);
-    } else if (BEEPS_BACKWARD && (((cmdR < -50 || cmdL < -50) && speedAvg < 0) || MultipleTapBrake.b_multipleTap)) { // 1 beep fast (high pitch): Backward spinning motors
+    } else if (BEEPS_BACKWARD && enable && (((cmdR < -50 || cmdL < -50) && speedAvg < 0) || MultipleTapBrake.b_multipleTap)) { // 1 beep fast (high pitch): Backward spinning motors
       beepCount(0, 5, 1);
       backwardDrive = 1;
     } else {  // do not beep

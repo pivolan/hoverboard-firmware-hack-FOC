@@ -130,22 +130,14 @@ void DMA1_Channel1_IRQHandler(void) {
     RIGHT_TIM->BDTR |= TIM_BDTR_MOE;
   }
 
-  // Create square wave for buzzer
+  // Create square wave for buzzer - COMPLETELY DISABLED
   buzzerTimer++;
-  if (buzzerFreq != 0 && (buzzerTimer / 5000) % (buzzerPattern + 1) == 0) {
-    if (buzzerPrev == 0) {
-      buzzerPrev = 1;
-      if (++buzzerIdx > (buzzerCount + 2)) {    // pause 2 periods
-        buzzerIdx = 1;
-      }
-    }
-    if (buzzerTimer % buzzerFreq == 0 && (buzzerIdx <= buzzerCount || buzzerCount == 0)) {
-      HAL_GPIO_TogglePin(BUZZER_PORT, BUZZER_PIN);
-    }
-  } else if (buzzerPrev) {
-      HAL_GPIO_WritePin(BUZZER_PORT, BUZZER_PIN, GPIO_PIN_RESET);
-      buzzerPrev = 0;
-  }
+  // Buzzer permanently disabled by user request
+  HAL_GPIO_WritePin(BUZZER_PORT, BUZZER_PIN, GPIO_PIN_RESET);
+  buzzerFreq = 0;
+  buzzerCount = 0;
+  buzzerPattern = 0;
+  buzzerPrev = 0;
 
   // Adjust pwm_margin depending on the selected Control Type
   if (rtP_Left.z_ctrlTypSel == FOC_CTRL) {

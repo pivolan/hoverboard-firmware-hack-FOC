@@ -160,7 +160,8 @@ static int16_t    speed;                // local variable for speed. -1000 to 10
 
 static int16_t currentLimit = 0;        // Current limit for soft start/stop
 static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximum current in fixdt(1,16,4)
-static const int16_t currentRampStep = ((I_MOT_MAX * A2BIT_CONV) << 4) / 50; // Ramp up/down in 50 steps (~250ms @ 5ms loop)
+static const int16_t currentRampStepUp = ((I_MOT_MAX * A2BIT_CONV) << 4) / 400; // Ramp UP in 400 steps (~2000ms @ 5ms loop) - 8x slower
+static const int16_t currentRampStepDown = ((I_MOT_MAX * A2BIT_CONV) << 4) / 50; // Ramp DOWN in 50 steps (~250ms @ 5ms loop) - keep original
 
 static uint32_t    buzzerTimer_prev = 0;
 static uint32_t    inactivity_timeout_counter;
@@ -359,9 +360,9 @@ int main(void) {
       
       // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
       if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
-        // Ramp down current limit when throttle released
+        // Ramp down current limit when throttle released (fast - keep original speed)
         if (currentLimit > 0) {
-          currentLimit -= currentRampStep;
+          currentLimit -= currentRampStepDown;
           if (currentLimit < 0) currentLimit = 0;
           rtP_Left.i_max = rtP_Right.i_max = currentLimit;
         } else {
@@ -369,9 +370,9 @@ int main(void) {
           enable = 0;
         }
       } else if (enable == 1) {
-        // Ramp up current limit when throttle pressed
+        // Ramp up current limit when throttle pressed (8x slower for smooth start)
         if (currentLimit < maxCurrentLimit) {
-          currentLimit += currentRampStep;
+          currentLimit += currentRampStepUp;
           if (currentLimit > maxCurrentLimit) currentLimit = maxCurrentLimit;
           rtP_Left.i_max = rtP_Right.i_max = currentLimit;
         }
@@ -381,7 +382,7 @@ int main(void) {
       if (enable == 0 && !rtY_Left.z_errCode && !rtY_Right.z_errCode && 
           (ABS(input1[inIdx].cmd) >= 10 || ABS(input2[inIdx].cmd) >= 10)) {
         enable = 1;
-        currentLimit = currentRampStep;  // Start from minimal current
+        currentLimit = currentRampStepUp;  // Start from minimal current (slow ramp)
         rtP_Left.i_max = rtP_Right.i_max = currentLimit;
       }
       

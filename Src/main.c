@@ -232,7 +232,7 @@ void applyAccelerationLimit(int16_t currentLimit, int16_t cmd1, int16_t cmd2) {
   speed_history_right[speed_history_index] = rtY_Right.n_mot;
   speed_history_index = (speed_history_index + 1) % ACCEL_WINDOW_SIZE;
 
-  // Расчет средней скорости за текущий период (6 измерений)
+  // Расчет средней скорости за текущий период
   int32_t speed_avg_left = 0;
   int32_t speed_avg_right = 0;
   for(int i = 0; i < ACCEL_WINDOW_SIZE; i++) {
@@ -242,42 +242,49 @@ void applyAccelerationLimit(int16_t currentLimit, int16_t cmd1, int16_t cmd2) {
   speed_avg_left /= ACCEL_WINDOW_SIZE;
   speed_avg_right /= ACCEL_WINDOW_SIZE;
 
-  // Расчет ускорения в RPM за 30 мс
+  // Расчет ускорения в RPM за период
   int32_t accel_rpm_left = speed_avg_left - speed_avg_prev_left;
   int32_t accel_rpm_right = speed_avg_right - speed_avg_prev_right;
   speed_avg_prev_left = speed_avg_left;
   speed_avg_prev_right = speed_avg_right;
 
-  // Пересчет в мм/с²: a = Δn × 0.443
-  // Формула: a = Δn × (L/60) / 0.03 = Δn × (0.798/60) / 0.03 = Δn × 0.443
+  // Пересчет в мм/с²: a = Δn × 0.443 (для 30мс окна)
   int32_t accel_left_mm_s2 = (accel_rpm_left * 443) / 1000;
   int32_t accel_right_mm_s2 = (accel_rpm_right * 443) / 1000;
 
   // Среднее ускорение обоих колес
   int32_t accel_avg_mm_s2 = (accel_left_mm_s2 + accel_right_mm_s2) / 2;
 
+  // Статическая переменная для текущего рабочего лимита
+  static int16_t accel_limited_current = 0;
+
+  // Инициализация при первом вызове
+  if (accel_limited_current == 0) {
+    accel_limited_current = current_effective;
+  }
+
   // Проверка превышения лимита (по модулю - и разгон, и торможение)
   if (ABS(accel_avg_mm_s2) > ACCEL_LIMIT) {
-    // Превышение лимита
-    int32_t accel_error = ABS(accel_avg_mm_s2) - ACCEL_LIMIT;
-
-    // Линейная коррекция тока
-    int32_t current_correction = (accel_error * ACCEL_K_LINEAR) / 1000;
-
-    // Новый лимит тока
-    int16_t new_i_max = current_effective - (int16_t)current_correction;
-
-    // Ограничение минимального тока (не опускаемся ниже минимума)
-    if (new_i_max < 0) {
-      new_i_max = 0;
+    // ПРЕВЫШЕНИЕ: сначала опускаем ток к нулю
+    if (accel_limited_current > ACCEL_K_LINEAR) {
+      accel_limited_current -= ACCEL_K_LINEAR;
+    } else {
+      accel_limited_current = 0;
     }
-
-    // Применение к обоим моторам
-    rtP_Left.i_max = rtP_Right.i_max = new_i_max;
   } else {
-    // Ускорение в пределах нормы - применяем current_effective
-    rtP_Left.i_max = rtP_Right.i_max = current_effective;
+    // Ускорение в пределах нормы - плавно поднимаем к целевому
+    if (accel_limited_current < current_effective) {
+      accel_limited_current += ACCEL_K_LINEAR / 4;  // Поднимаем в 4 раза медленнее
+      if (accel_limited_current > current_effective) {
+        accel_limited_current = current_effective;
+      }
+    } else if (accel_limited_current > current_effective) {
+      accel_limited_current = current_effective;
+    }
   }
+
+  // Применение к обоим моторам
+  rtP_Left.i_max = rtP_Right.i_max = accel_limited_current;
   #else
   // ACCEL_LIMIT_ENABLE disabled - use current_effective directly
   rtP_Left.i_max = rtP_Right.i_max = current_effective;

@@ -160,6 +160,7 @@ static int16_t    speed;                // local variable for speed. -1000 to 10
 
 static int16_t currentLimit = 0;        // Current limit for soft start/stop
 static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximum current in fixdt(1,16,4)
+static const int16_t minCurrentLimit = 16;  // Minimum current ~1mA in fixdt(1,16,4) to keep current limiting active
 static const int16_t currentRampStepUp = ((I_MOT_MAX * A2BIT_CONV) << 4) / 400; // Ramp UP in 400 steps (~2000ms @ 5ms loop) - 8x slower
 static const int16_t currentRampStepDown = ((I_MOT_MAX * A2BIT_CONV) << 4) / 50; // Ramp DOWN in 50 steps (~250ms @ 5ms loop) - keep original
 
@@ -360,15 +361,13 @@ int main(void) {
       
       // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
       if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
-        // Ramp down current limit when throttle released (fast - keep original speed)
-        if (currentLimit > 0) {
+        // Ramp down current limit when throttle released (fast)
+        if (currentLimit > minCurrentLimit) {
           currentLimit -= currentRampStepDown;
-          if (currentLimit < 0) currentLimit = 0;
+          if (currentLimit < minCurrentLimit) currentLimit = minCurrentLimit;
           rtP_Left.i_max = rtP_Right.i_max = currentLimit;
-        } else {
-          // Fully stopped - disable motors
-          enable = 0;
         }
+        // Keep motors enabled with minimal current instead of disabling
       } else if (enable == 1) {
         // Ramp up current limit when throttle pressed (8x slower for smooth start)
         if (currentLimit < maxCurrentLimit) {
@@ -396,12 +395,6 @@ int main(void) {
       #else
         pwml = cmdL;
       #endif
-      
-      // Set PWM to zero when disabled
-      if (enable == 0) {
-        pwml = 0;
-        pwmr = 0;
-      }
     #endif
 
     #ifdef VARIANT_TRANSPOTTER
@@ -594,20 +587,21 @@ int main(void) {
       poweroff();
     } else if (rtY_Left.z_errCode || rtY_Right.z_errCode) {                                           // 1 beep (low pitch): Motor error, disable motors
       enable = 0;
-    } else if (timeoutFlgADC) {                                                                       // 2 beeps (low pitch): ADC timeout - BEEP DISABLED
-      // beepCount(2, 24, 1);
-    } else if (timeoutFlgSerial) {                                                                    // 3 beeps (low pitch): Serial timeout - BEEP DISABLED
-      // beepCount(3, 24, 1);
-    } else if (timeoutFlgGen) {                                                                       // 4 beeps (low pitch): General timeout (PPM, PWM, Nunchuk) - BEEP DISABLED
-      // beepCount(4, 24, 1);
-    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING) {                            // 5 beeps (low pitch): Mainboard temperature warning - BEEP DISABLED
-      // beepCount(5, 24, 1);
-    } else if (BAT_LVL1_ENABLE && batVoltage < BAT_LVL1) {                                           // 1 beep fast (medium pitch): Low bat 1 - BEEP DISABLED
-      // beepCount(0, 10, 6);
-    } else if (BAT_LVL2_ENABLE && batVoltage < BAT_LVL2) {                                           // 1 beep slow (medium pitch): Low bat 2 - BEEP DISABLED
-      // beepCount(0, 10, 30);
-    } else if (BEEPS_BACKWARD && (((cmdR < -50 || cmdL < -50) && speedAvg < 0) || MultipleTapBrake.b_multipleTap)) { // 1 beep fast (high pitch): Backward spinning motors - BEEP DISABLED
-      // beepCount(0, 5, 1);
+      beepCount(1, 24, 1);
+    } else if (timeoutFlgADC) {                                                                       // 2 beeps (low pitch): ADC timeout
+      beepCount(2, 24, 1);
+    } else if (timeoutFlgSerial) {                                                                    // 3 beeps (low pitch): Serial timeout
+      beepCount(3, 24, 1);
+    } else if (timeoutFlgGen) {                                                                       // 4 beeps (low pitch): General timeout (PPM, PWM, Nunchuk)
+      beepCount(4, 24, 1);
+    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING) {                             // 5 beeps (low pitch): Mainboard temperature warning
+      beepCount(5, 24, 1);
+    } else if (BAT_LVL1_ENABLE && batVoltage < BAT_LVL1) {                                            // 1 beep fast (medium pitch): Low bat 1
+      beepCount(0, 10, 6);
+    } else if (BAT_LVL2_ENABLE && batVoltage < BAT_LVL2) {                                            // 1 beep slow (medium pitch): Low bat 2
+      beepCount(0, 10, 30);
+    } else if (BEEPS_BACKWARD && (((cmdR < -50 || cmdL < -50) && speedAvg < 0) || MultipleTapBrake.b_multipleTap)) { // 1 beep fast (high pitch): Backward spinning motors
+      beepCount(0, 5, 1);
       backwardDrive = 1;
     } else {  // do not beep
       beepCount(0, 0, 0);

@@ -172,7 +172,7 @@
 // Acceleration Limiting (limits both acceleration and deceleration via current control)
 #define ACCEL_LIMIT_ENABLE      1           // [-] Enable acceleration limiting: 0 = Disabled, 1 = Enabled
 #define ACCEL_LIMIT             300        // [mm/s²] Acceleration limit (1200 mm/s² = 1.2 m/s²). Comfortable for standing: 500-1500, sporty: 1500-2500
-#define ACCEL_WINDOW_SIZE       6           // [-] Moving average window size (6 samples = 30ms at 5ms loop time)
+#define ACCEL_WINDOW_SIZE       2           // [-] Moving average window size (6 samples = 30ms at 5ms loop time)
 #define ACCEL_K_LINEAR          800         // [-] Linear correction coefficient (500-1500). Higher = more aggressive limiting
 
 // Idle Current Reduction (smooth motor freewheel after 3 seconds of inactivity)

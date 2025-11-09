@@ -154,7 +154,7 @@
 // Limitation settings
 #define I_MOT_MAX       15              // [A] Maximum single motor current limit
 #define I_DC_MAX        30              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
-#define N_MOT_MAX       150            // [rpm] Maximum motor speed limit
+#define N_MOT_MAX       100            // [rpm] Maximum motor speed limit
 
 // Field Weakening / Phase Advance
 #define FIELD_WEAK_ENA  0               // [-] Field Weakening / Phase Advance enable flag: 0 = Disabled (default), 1 = Enabled
@@ -168,6 +168,18 @@
 // #define ELECTRIC_BRAKE_ENABLE           // [-] Flag to enable electric brake and replace the motor "freewheel" with a constant braking when the input torque request is 0. Only available and makes sense for TORQUE mode.
 // #define ELECTRIC_BRAKE_MAX    100       // (0, 500) Maximum electric brake to be applied when input torque request is 0 (pedal fully released).
 // #define ELECTRIC_BRAKE_THRES  120       // (0, 500) Threshold below at which the electric brake starts engaging.
+
+// Acceleration Limiting (limits both acceleration and deceleration via current control)
+#define ACCEL_LIMIT_ENABLE      1           // [-] Enable acceleration limiting: 0 = Disabled, 1 = Enabled
+#define ACCEL_LIMIT             1200        // [mm/s²] Acceleration limit (1200 mm/s² = 1.2 m/s²). Comfortable for standing: 500-1500, sporty: 1500-2500
+#define ACCEL_WINDOW_SIZE       6           // [-] Moving average window size (6 samples = 30ms at 5ms loop time)
+#define ACCEL_K_LINEAR          800         // [-] Linear correction coefficient (500-1500). Higher = more aggressive limiting
+
+// Idle Current Reduction (smooth motor freewheel after 3 seconds of inactivity)
+#define IDLE_CURRENT_ENABLE     1           // [-] Enable idle current reduction: 0 = Disabled, 1 = Enabled
+#define IDLE_TIMEOUT_MS         3000        // [ms] Idle timeout before current reduction (3000 ms = 3 seconds)
+#define IDLE_CMD_THRESHOLD      10          // [-] Command threshold to detect released triggers (0-1000 range)
+#define IDLE_CURRENT_STEP       10          // [-] Current reduction step for smooth transition
 // ########################### END OF MOTOR CONTROL ########################
 
 

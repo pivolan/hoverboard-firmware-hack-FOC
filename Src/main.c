@@ -169,6 +169,122 @@ static uint16_t rate = RATE; // Adjustable rate to support multiple drive modes 
   static uint16_t max_speed;
 #endif
 
+// Acceleration limiting and idle current reduction variables
+#if ACCEL_LIMIT_ENABLE || IDLE_CURRENT_ENABLE
+  #define IDLE_TIMEOUT_LOOPS  (IDLE_TIMEOUT_MS / DELAY_IN_MAIN_LOOP)  // Calculated from config.h parameters
+
+  static int16_t speed_history_left[ACCEL_WINDOW_SIZE] = {0};
+  static int16_t speed_history_right[ACCEL_WINDOW_SIZE] = {0};
+  static uint8_t speed_history_index = 0;
+  static int32_t speed_avg_prev_left = 0;
+  static int32_t speed_avg_prev_right = 0;
+  static int16_t base_current_limit = 0;      // Базовый лимит тока (устанавливается при инициализации)
+  static uint16_t idle_counter = 0;           // Счетчик времени бездействия
+  static int16_t current_target = 0;          // Целевой лимит тока (с учетом бездействия)
+  static int16_t current_effective = 0;       // Текущий эффективный лимит тока (плавно изменяется)
+#endif
+
+#if ACCEL_LIMIT_ENABLE || IDLE_CURRENT_ENABLE
+// Функция ограничения тока на основе ускорения и управления бездействием
+void applyAccelerationLimit(int16_t currentLimit, int16_t cmd1, int16_t cmd2) {
+  #if IDLE_CURRENT_ENABLE
+  // ####### IDLE CURRENT REDUCTION #######
+  // Инициализация при первом вызове
+  if (current_effective == 0 && currentLimit > 0) {
+    current_effective = currentLimit;
+    current_target = currentLimit;
+  }
+
+  // Проверка состояния курков
+  if (ABS(cmd1) < IDLE_CMD_THRESHOLD && ABS(cmd2) < IDLE_CMD_THRESHOLD) {
+    // Курки отпущены - увеличиваем счетчик бездействия
+    if (idle_counter < IDLE_TIMEOUT_LOOPS) {
+      idle_counter++;
+    }
+
+    // Если прошло 3 секунды бездействия - устанавливаем целевой ток в 0
+    if (idle_counter >= IDLE_TIMEOUT_LOOPS) {
+      current_target = 0;
+    }
+  } else {
+    // Курки нажаты - сбрасываем счетчик и восстанавливаем ток
+    idle_counter = 0;
+    current_target = currentLimit;
+  }
+
+  // Плавное изменение тока к целевому значению
+  if (current_effective > current_target + IDLE_CURRENT_STEP) {
+    current_effective -= IDLE_CURRENT_STEP;
+  } else if (current_effective < current_target - IDLE_CURRENT_STEP) {
+    current_effective += IDLE_CURRENT_STEP;
+  } else {
+    current_effective = current_target;
+  }
+  #else
+  // IDLE_CURRENT_ENABLE disabled - use currentLimit directly
+  int16_t current_effective = currentLimit;
+  #endif
+
+  #if ACCEL_LIMIT_ENABLE
+  // ####### ACCELERATION LIMITING #######
+  // Обновление истории скоростей
+  speed_history_left[speed_history_index] = rtY_Left.n_mot;
+  speed_history_right[speed_history_index] = rtY_Right.n_mot;
+  speed_history_index = (speed_history_index + 1) % ACCEL_WINDOW_SIZE;
+
+  // Расчет средней скорости за текущий период (6 измерений)
+  int32_t speed_avg_left = 0;
+  int32_t speed_avg_right = 0;
+  for(int i = 0; i < ACCEL_WINDOW_SIZE; i++) {
+    speed_avg_left += speed_history_left[i];
+    speed_avg_right += speed_history_right[i];
+  }
+  speed_avg_left /= ACCEL_WINDOW_SIZE;
+  speed_avg_right /= ACCEL_WINDOW_SIZE;
+
+  // Расчет ускорения в RPM за 30 мс
+  int32_t accel_rpm_left = speed_avg_left - speed_avg_prev_left;
+  int32_t accel_rpm_right = speed_avg_right - speed_avg_prev_right;
+  speed_avg_prev_left = speed_avg_left;
+  speed_avg_prev_right = speed_avg_right;
+
+  // Пересчет в мм/с²: a = Δn × 0.443
+  // Формула: a = Δn × (L/60) / 0.03 = Δn × (0.798/60) / 0.03 = Δn × 0.443
+  int32_t accel_left_mm_s2 = (accel_rpm_left * 443) / 1000;
+  int32_t accel_right_mm_s2 = (accel_rpm_right * 443) / 1000;
+
+  // Среднее ускорение обоих колес
+  int32_t accel_avg_mm_s2 = (accel_left_mm_s2 + accel_right_mm_s2) / 2;
+
+  // Проверка превышения лимита (по модулю - и разгон, и торможение)
+  if (ABS(accel_avg_mm_s2) > ACCEL_LIMIT) {
+    // Превышение лимита
+    int32_t accel_error = ABS(accel_avg_mm_s2) - ACCEL_LIMIT;
+
+    // Линейная коррекция тока
+    int32_t current_correction = (accel_error * ACCEL_K_LINEAR) / 1000;
+
+    // Новый лимит тока
+    int16_t new_i_max = current_effective - (int16_t)current_correction;
+
+    // Ограничение минимального тока (не опускаемся ниже минимума)
+    if (new_i_max < 0) {
+      new_i_max = 0;
+    }
+
+    // Применение к обоим моторам
+    rtP_Left.i_max = rtP_Right.i_max = new_i_max;
+  } else {
+    // Ускорение в пределах нормы - применяем current_effective
+    rtP_Left.i_max = rtP_Right.i_max = current_effective;
+  }
+  #else
+  // ACCEL_LIMIT_ENABLE disabled - use current_effective directly
+  rtP_Left.i_max = rtP_Right.i_max = current_effective;
+  #endif
+}
+#endif
+
 
 int main(void) {
 
@@ -235,6 +351,11 @@ int main(void) {
     }
 
     printf("Drive mode %i selected: max_speed:%i acc_rate:%i \r\n", drive_mode, max_speed, rate);
+  #endif
+
+  // Сохраняем базовый лимит тока для ограничения ускорения
+  #if ACCEL_LIMIT_ENABLE || IDLE_CURRENT_ENABLE
+    base_current_limit = rtP_Left.i_max;
   #endif
 
   // Loop until button is released
@@ -597,6 +718,12 @@ int main(void) {
       poweroff();
     }
 
+    // ####### ACCELERATION LIMITING & IDLE CURRENT REDUCTION #######
+    #if ACCEL_LIMIT_ENABLE || IDLE_CURRENT_ENABLE
+      if (enable == 1 && !rtY_Left.z_errCode && !rtY_Right.z_errCode) {
+        applyAccelerationLimit(base_current_limit, input1[inIdx].cmd, input2[inIdx].cmd);
+      }
+    #endif
 
     // HAL_GPIO_TogglePin(LED_PORT, LED_PIN);                 // This is to measure the main() loop duration with an oscilloscope connected to LED_PIN
     // Update states

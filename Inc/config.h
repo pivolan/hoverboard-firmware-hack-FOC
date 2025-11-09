@@ -173,7 +173,7 @@
 #define ACCEL_LIMIT_ENABLE      1           // [-] Enable acceleration limiting: 0 = Disabled, 1 = Enabled
 #define ACCEL_LIMIT             300        // [mm/s²] Acceleration limit (1200 mm/s² = 1.2 m/s²). Comfortable for standing: 500-1500, sporty: 1500-2500
 #define ACCEL_WINDOW_SIZE       2           // [-] Moving average window size (6 samples = 30ms at 5ms loop time)
-#define ACCEL_K_LINEAR          800         // [-] Linear correction coefficient (500-1500). Higher = more aggressive limiting
+#define ACCEL_K_LINEAR          80          // [-] Current step per iteration: 80 = 100mA (formula: mA/10 * A2BIT_CONV/100 * 16)
 
 // Idle Current Reduction (smooth motor freewheel after 3 seconds of inactivity)
 #define IDLE_CURRENT_ENABLE     1           // [-] Enable idle current reduction: 0 = Disabled, 1 = Enabled

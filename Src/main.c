@@ -182,6 +182,7 @@ static uint16_t rate = RATE; // Adjustable rate to support multiple drive modes 
   static uint16_t idle_counter = 0;           // Счетчик времени бездействия
   static int16_t current_target = 0;          // Целевой лимит тока (с учетом бездействия)
   static int16_t current_effective = 0;       // Текущий эффективный лимит тока (плавно изменяется)
+  static uint8_t idle_beep_flag = 0;          // Флаг для однократного пика при idle
 #endif
 
 #if ACCEL_LIMIT_ENABLE || IDLE_CURRENT_ENABLE
@@ -210,6 +211,7 @@ void applyAccelerationLimit(int16_t currentLimit, int16_t cmd1, int16_t cmd2) {
     // Курки нажаты - сбрасываем счетчик и восстанавливаем ток
     idle_counter = 0;
     current_target = currentLimit;
+    idle_beep_flag = 0;  // Сброс флага при активности
   }
 
   // Плавное изменение тока к целевому значению
@@ -219,6 +221,12 @@ void applyAccelerationLimit(int16_t currentLimit, int16_t cmd1, int16_t cmd2) {
     current_effective += IDLE_CURRENT_STEP;
   } else {
     current_effective = current_target;
+  }
+
+  // Пикнуть один раз когда ток упал до нуля из-за idle
+  if (current_effective == 0 && current_target == 0 && !idle_beep_flag) {
+    beepCount(1, 1, 1);  // Один очень тихий короткий пик (freq=1 - минимум)
+    idle_beep_flag = 1;
   }
   #else
   // IDLE_CURRENT_ENABLE disabled - use currentLimit directly

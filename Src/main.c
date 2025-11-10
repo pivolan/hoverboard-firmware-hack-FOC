@@ -331,12 +331,14 @@ int main(void) {
       // ####### ACCELERATION LIMITER WITH FEEDBACK #######
       // Limit real acceleration/deceleration based on actual motor speed (speedAvg)
       // This prevents command from running away from real speed
-      int16_t accelError = speed - speedAvg;  // Difference between desired and actual speed
+      // Scale speedAvg from RPM [-N_MOT_MAX, N_MOT_MAX] to command range [-1000, 1000]
+      int16_t speedAvg_scaled = (speedAvg * 1000) / N_MOT_MAX;
+      int16_t accelError = speed - speedAvg_scaled;  // Difference between desired and actual speed
 
       if (accelError > ACCEL_MAX_STEP) {
-        speed = speedAvg + ACCEL_MAX_STEP;  // Limit acceleration
+        speed = speedAvg_scaled + ACCEL_MAX_STEP;  // Limit acceleration
       } else if (accelError < -DECEL_MAX_STEP) {
-        speed = speedAvg - DECEL_MAX_STEP;  // Limit deceleration
+        speed = speedAvg_scaled - DECEL_MAX_STEP;  // Limit deceleration
       }
       // Otherwise speed remains as calculated (within limits)
 

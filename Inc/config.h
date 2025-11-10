@@ -191,6 +191,10 @@
 #define DEFAULT_FILTER              10553  // Default for FILTER 0.1f [-] lower value == softer filter [0, 65535] = [0.0 - 1.0].
 #define DEFAULT_SPEED_COEFFICIENT   16384 // Default for SPEED_COEFFICIENT 1.0f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case 16384 = 1.0 * 2^14
 #define DEFAULT_STEER_COEFFICIENT   16384  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
+
+// Acceleration limiting with feedback (limits real motor acceleration, not just command rate)
+#define ACCEL_MAX_STEP              20     // [RPM/cycle] Maximum acceleration: 50 RPM per 5ms = 10000 RPM/s. Lower = smoother acceleration
+#define DECEL_MAX_STEP              20    // [RPM/cycle] Maximum deceleration: 200 RPM per 5ms = 40000 RPM/s. Higher = faster braking
 // ######################### END OF DEFAULT SETTINGS ##########################
 
 

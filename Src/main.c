@@ -328,6 +328,18 @@ int main(void) {
       steer = (int16_t)(steerFixdt >> 16);  // convert fixed-point to integer
       speed = (int16_t)(speedFixdt >> 16);  // convert fixed-point to integer
 
+      // ####### ACCELERATION LIMITER WITH FEEDBACK #######
+      // Limit real acceleration/deceleration based on actual motor speed (speedAvg)
+      // This prevents command from running away from real speed
+      int16_t accelError = speed - speedAvg;  // Difference between desired and actual speed
+
+      if (accelError > ACCEL_MAX_STEP) {
+        speed = speedAvg + ACCEL_MAX_STEP;  // Limit acceleration
+      } else if (accelError < -DECEL_MAX_STEP) {
+        speed = speedAvg - DECEL_MAX_STEP;  // Limit deceleration
+      }
+      // Otherwise speed remains as calculated (within limits)
+
       // ####### VARIANT_HOVERCAR #######
       #ifdef VARIANT_HOVERCAR
       if (inIdx == CONTROL_ADC) {               // Only use use implementation below if pedals are in use (ADC input)

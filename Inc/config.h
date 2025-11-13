@@ -193,8 +193,11 @@
 #define DEFAULT_STEER_COEFFICIENT   16384  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
 
 // Acceleration limiting with feedback (limits real motor acceleration, not just command rate)
-#define ACCEL_MAX_STEP              75     // [RPM/cycle] Maximum acceleration: 50 RPM per 5ms = 10000 RPM/s. Lower = smoother acceleration
-#define DECEL_MAX_STEP              150    // [RPM/cycle] Maximum deceleration: 200 RPM per 5ms = 40000 RPM/s. Higher = faster braking
+// ACCEL_RATE: used when moving away from zero (increasing absolute speed): 0 → ±1000
+// DECEL_RATE: used when moving toward zero (decreasing absolute speed): ±1000 → 0
+#define ACCEL_RATE                  75     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
+#define DECEL_RATE                  150    // [RPM/cycle] Deceleration rate: 150 RPM per 5ms = 30000 RPM/s. Higher = faster braking
+#define THROTTLE_RELEASE_TIMEOUT    600    // [cycles] Timeout before reducing current after throttle release: 600 cycles * 5ms = 3 seconds
 // ######################### END OF DEFAULT SETTINGS ##########################
 
 

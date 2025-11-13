@@ -163,6 +163,7 @@ static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximu
 static const int16_t minCurrentLimit = 16;  // Minimum current ~1mA in fixdt(1,16,4) to keep current limiting active
 static const int16_t currentRampStepUp = ((I_MOT_MAX * A2BIT_CONV) << 4) / 400; // Ramp UP in 400 steps (~2000ms @ 5ms loop) - 8x slower
 static const int16_t currentRampStepDown = ((I_MOT_MAX * A2BIT_CONV) << 4) / 50; // Ramp DOWN in 50 steps (~250ms @ 5ms loop) - keep original
+static uint16_t throttle_release_counter = 0;  // Counter for throttle release timeout (3 seconds before current reduction)
 
 static uint32_t    buzzerTimer_prev = 0;
 static uint32_t    inactivity_timeout_counter;
@@ -335,10 +336,21 @@ int main(void) {
       int16_t speedAvg_scaled = (speedAvg * 1000) / N_MOT_MAX;
       int16_t accelError = speed - speedAvg_scaled;  // Difference between desired and actual speed
 
-      if (accelError > ACCEL_MAX_STEP) {
-        speed = speedAvg_scaled + ACCEL_MAX_STEP;  // Limit acceleration
-      } else if (accelError < -DECEL_MAX_STEP) {
-        speed = speedAvg_scaled - DECEL_MAX_STEP;  // Limit deceleration
+      // Determine if we're accelerating or decelerating:
+      // - If direction change (opposite signs) → always deceleration (braking through zero)
+      // - If same direction: compare absolute values
+      //   - |desired| > |current| → acceleration (moving away from zero)
+      //   - |desired| < |current| → deceleration (moving toward zero)
+      int16_t abs_speed_desired = abs(speed);
+      int16_t abs_speed_current = abs(speedAvg_scaled);
+      uint8_t opposite_direction = (speed >= 0 && speedAvg_scaled < 0) || (speed < 0 && speedAvg_scaled >= 0);
+      uint8_t accelerating = !opposite_direction && (abs_speed_desired > abs_speed_current);
+      int16_t rate = accelerating ? ACCEL_RATE : DECEL_RATE;
+
+      if (accelError > rate) {
+        speed = speedAvg_scaled + rate;
+      } else if (accelError < -rate) {
+        speed = speedAvg_scaled - rate;
       }
       // Otherwise speed remains as calculated (within limits)
 
@@ -372,18 +384,24 @@ int main(void) {
 
 
       // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
-      
+
       // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
       if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
-        // Ramp down current limit when throttle released (fast)
-        if (currentLimit > minCurrentLimit) {
-          currentLimit -= currentRampStepDown;
-          if (currentLimit < minCurrentLimit) currentLimit = minCurrentLimit;
-          rtP_Left.i_max = rtP_Right.i_max = currentLimit;
+        // Throttle released - increment timeout counter
+        throttle_release_counter++;
+
+        // Only ramp down current after timeout (3 seconds)
+        if (throttle_release_counter >= THROTTLE_RELEASE_TIMEOUT) {
+          if (currentLimit > minCurrentLimit) {
+            currentLimit -= currentRampStepDown;
+            if (currentLimit < minCurrentLimit) currentLimit = minCurrentLimit;
+            rtP_Left.i_max = rtP_Right.i_max = currentLimit;
+          }
         }
-        // Keep motors enabled with minimal current instead of disabling
+        // Before timeout: keep current limit unchanged (maintain current level)
       } else if (enable == 1) {
-        // Ramp up current limit when throttle pressed (8x slower for smooth start)
+        // Throttle pressed - reset timeout counter and ramp up current
+        throttle_release_counter = 0;
         if (currentLimit < maxCurrentLimit) {
           currentLimit += currentRampStepUp;
           if (currentLimit > maxCurrentLimit) currentLimit = maxCurrentLimit;

@@ -386,37 +386,20 @@ int main(void) {
       // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
 
       // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
-      if (enable == 1 && ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
+      if (ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
         // Throttle released - increment timeout counter
         throttle_release_counter++;
 
         // Only ramp down current after timeout (3 seconds)
         if (throttle_release_counter >= THROTTLE_RELEASE_TIMEOUT) {
-          if (currentLimit > minCurrentLimit) {
-            currentLimit -= currentRampStepDown;
-            if (currentLimit < minCurrentLimit) currentLimit = minCurrentLimit;
-            rtP_Left.i_max = rtP_Right.i_max = currentLimit;
-          }
+            rtP_Left.i_max = rtP_Right.i_max = minCurrentLimit;
         }
-        // Before timeout: keep current limit unchanged (maintain current level)
-      } else if (enable == 1) {
+      } else {
         // Throttle pressed - reset timeout counter and ramp up current
         throttle_release_counter = 0;
-        if (currentLimit < maxCurrentLimit) {
-          currentLimit += currentRampStepUp;
-          if (currentLimit > maxCurrentLimit) currentLimit = maxCurrentLimit;
-          rtP_Left.i_max = rtP_Right.i_max = currentLimit;
-        }
+        rtP_Left.i_max = rtP_Right.i_max = maxCurrentLimit;
       }
-      
-      // Re-enable motors when throttle is pressed (with soft start)
-      if (enable == 0 && !rtY_Left.z_errCode && !rtY_Right.z_errCode && 
-          (ABS(input1[inIdx].cmd) >= 10 || ABS(input2[inIdx].cmd) >= 10)) {
-        enable = 1;
-        currentLimit = currentRampStepUp;  // Start from minimal current (slow ramp)
-        rtP_Left.i_max = rtP_Right.i_max = currentLimit;
-      }
-      
+
       #ifdef INVERT_R_DIRECTION
         pwmr = cmdR;
       #else

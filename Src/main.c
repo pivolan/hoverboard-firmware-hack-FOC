@@ -386,7 +386,7 @@ int main(void) {
       // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
 
       // ####### SOFT START/STOP - SMOOTH CURRENT RAMPING #######
-      if (ABS(input1[inIdx].cmd) < 10 && ABS(input2[inIdx].cmd) < 10) {
+      if (ABS(input1[inIdx].cmd) < 50 && ABS(input2[inIdx].cmd) < 50) {
         // Throttle released - increment timeout counter
         throttle_release_counter++;
 

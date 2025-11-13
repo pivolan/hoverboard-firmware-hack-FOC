@@ -197,7 +197,7 @@
 // DECEL_RATE: used when moving toward zero (decreasing absolute speed): ±1000 → 0
 #define ACCEL_RATE                  75     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
 #define DECEL_RATE                  150    // [RPM/cycle] Deceleration rate: 150 RPM per 5ms = 30000 RPM/s. Higher = faster braking
-#define THROTTLE_RELEASE_TIMEOUT    200    // [cycles] Timeout before reducing current after throttle release: 600 cycles * 5ms = 3 seconds
+#define THROTTLE_RELEASE_TIMEOUT    10    // [cycles] Timeout before reducing current after throttle release: 600 cycles * 5ms = 3 seconds
 // ######################### END OF DEFAULT SETTINGS ##########################
 
 

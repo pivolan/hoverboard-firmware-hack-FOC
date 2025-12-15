@@ -80,12 +80,12 @@
 #define BAT_LVL1_ENABLE         1         // to beep or not to beep, 1 or 0
 #define BAT_DEAD_ENABLE         1         // to poweroff or not to poweroff, 1 or 0
 #define BAT_BLINK_INTERVAL      80        // battery led blink interval (80 loops * 5ms ~= 400ms)
-#define BAT_LVL5                (380 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Green blink:  no beep (38.0V = 3.8V/cell)
-#define BAT_LVL4                (360 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow:       no beep (36.0V = 3.6V/cell)
-#define BAT_LVL3                (340 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow blink: no beep (34.0V = 3.4V/cell)
-#define BAT_LVL2                (320 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Red:          gently beep at this voltage level (32.0V = 3.2V/cell)
+#define BAT_LVL5                (180 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Green blink:  no beep (38.0V = 3.8V/cell)
+#define BAT_LVL4                (160 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow:       no beep (36.0V = 3.6V/cell)
+#define BAT_LVL3                (140 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow blink: no beep (34.0V = 3.4V/cell)
+#define BAT_LVL2                (120 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Red:          gently beep at this voltage level (32.0V = 3.2V/cell)
 #define BAT_LVL1                (290 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Red blink:    fast beep. Your battery is almost empty (29.0V = 2.9V/cell)
-#define BAT_DEAD                (260 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // All leds off: undervoltage poweroff (26.0V = 2.6V/cell - safe for 2.5V cells)
+#define BAT_DEAD                (100 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // All leds off: undervoltage poweroff (26.0V = 2.6V/cell - safe for 2.5V cells)
 // ######################## END OF BATTERY ###############################
 
 
@@ -152,8 +152,8 @@
 #define DIAG_ENA        1               // [-] Motor Diagnostics enable flag: 0 = Disabled, 1 = Enabled (default)
 
 // Limitation settings
-#define I_MOT_MAX       25              // [A] Maximum single motor current limit
-#define I_DC_MAX        50              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
+#define I_MOT_MAX       22              // [A] Maximum single motor current limit
+#define I_DC_MAX        27              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
 #define N_MOT_MAX       150            // [rpm] Maximum motor speed limit
 
 // Field Weakening / Phase Advance

@@ -85,7 +85,7 @@
 #define BAT_LVL3                (140 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow blink: no beep (34.0V = 3.4V/cell)
 #define BAT_LVL2                (120 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Red:          gently beep at this voltage level (32.0V = 3.2V/cell)
 #define BAT_LVL1                (290 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Red blink:    fast beep. Your battery is almost empty (29.0V = 2.9V/cell)
-#define BAT_DEAD                (10 0 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // All leds off: undervoltage poweroff (26.0V = 2.6V/cell - safe for 2.5V cells)
+#define BAT_DEAD                (100 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // All leds off: undervoltage poweroff (26.0V = 2.6V/cell - safe for 2.5V cells)
 // ######################## END OF BATTERY ###############################
 
 

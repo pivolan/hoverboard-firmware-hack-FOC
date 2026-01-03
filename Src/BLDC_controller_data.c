@@ -146,8 +146,10 @@ const ConstP rtConstP = {
 
   /* Computed Parameter: vec_hallToPos_Value
    * Referenced by: '<S11>/vec_hallToPos'
+   * Hall sensor configuration: 60 degrees (modified based on community testing)
+   * Maps 3-bit hall sensor code (0-7) to position index (0-5)
    */
-  { 0, 2, 0, 1, 4, 3, 5, 0 }
+  { 0, 1, 3, 2, 5, 0, 4, 0 }
 };
 
 P rtP_Left = {

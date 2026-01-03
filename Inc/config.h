@@ -143,7 +143,7 @@
 #define TRQ_MODE        3               // [-] TORQUE mode
 
 // Enable/Disable Motor
-//#define MOTOR_LEFT_ENA                  // [-] Enable LEFT motor.  Comment-out if this motor is not needed to be operational
+#define MOTOR_LEFT_ENA                  // [-] Enable LEFT motor.  Comment-out if this motor is not needed to be operational
 #define MOTOR_RIGHT_ENA                 // [-] Enable RIGHT motor. Comment-out if this motor is not needed to be operational
 
 // Control selections
@@ -154,7 +154,7 @@
 // Limitation settings
 #define I_MOT_MAX       22              // [A] Maximum single motor current limit
 #define I_DC_MAX        25              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
-#define N_MOT_MAX       140            // [rpm] Maximum motor speed limit
+#define N_MOT_MAX       150            // [rpm] Maximum motor speed limit
 
 // Field Weakening / Phase Advance
 #define FIELD_WEAK_ENA  0               // [-] Field Weakening / Phase Advance enable flag: 0 = Disabled (default), 1 = Enabled
@@ -190,12 +190,12 @@
 #define DEFAULT_RATE                20000   // 30.0f [-] lower value == slower rate [0, 32767] = [0.0, 2047.9375]. Do NOT make rate negative (>32767)
 #define DEFAULT_FILTER              6553  // Default for FILTER 0.1f [-] lower value == softer filter [0, 65535] = [0.0 - 1.0].
 #define DEFAULT_SPEED_COEFFICIENT   16384 // Default for SPEED_COEFFICIENT 1.0f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case 16384 = 1.0 * 2^14
-#define DEFAULT_STEER_COEFFICIENT   13000  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
+#define DEFAULT_STEER_COEFFICIENT   9000  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
 
 // Acceleration limiting with feedback (limits real motor acceleration, not just command rate)
 // ACCEL_RATE: used when moving away from zero (increasing absolute speed): 0 → ±1000
 // DECEL_RATE: used when moving toward zero (decreasing absolute speed): ±1000 → 0
-#define ACCEL_RATE                  75     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
+#define ACCEL_RATE                  100     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
 #define DECEL_RATE                  150    // [RPM/cycle] Deceleration rate: 150 RPM per 5ms = 30000 RPM/s. Higher = faster braking
 #define THROTTLE_RELEASE_TIMEOUT    10    // [cycles] Timeout before reducing current after throttle release: 600 cycles * 5ms = 3 seconds
 // ######################### END OF DEFAULT SETTINGS ##########################

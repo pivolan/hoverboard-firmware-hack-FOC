@@ -274,8 +274,8 @@ int main(void) {
         #endif
       }
 
-      // ####### VARIANT_HOVERCAR #######
-      #if defined(VARIANT_HOVERCAR) || defined(VARIANT_SKATEBOARD) || defined(ELECTRIC_BRAKE_ENABLE)
+      // ####### VARIANT_HOVERCAR / VARIANT_PWM with triggers #######
+      #if defined(VARIANT_HOVERCAR) || defined(VARIANT_SKATEBOARD) || defined(ELECTRIC_BRAKE_ENABLE) || (defined(VARIANT_PWM) && defined(DUAL_INPUTS))
         uint16_t speedBlend;                                        // Calculate speed Blend, a number between [0, 1] in fixdt(0,16,15)
         speedBlend = (uint16_t)(((CLAMP(speedAvgAbs,10,60) - 10) << 15) / 50); // speedBlend [0,1] is within [10 rpm, 60rpm]
       #endif
@@ -312,13 +312,35 @@ int main(void) {
       #endif
 
       #ifdef VARIANT_SKATEBOARD
-        if (input2[inIdx].cmd < 0) {                                // When Throttle is negative, it acts as brake. This condition is to make sure it goes to 0 as we reach standstill (to avoid Reverse driving) 
+        if (input2[inIdx].cmd < 0) {                                // When Throttle is negative, it acts as brake. This condition is to make sure it goes to 0 as we reach standstill (to avoid Reverse driving)
           if (speedAvg > 0) {                                       // Make sure the braking is opposite to the direction of motion
             input2[inIdx].cmd  = (int16_t)(( input2[inIdx].cmd * speedBlend) >> 15);
           } else {
             input2[inIdx].cmd  = (int16_t)((-input2[inIdx].cmd * speedBlend) >> 15);
           }
         }
+      #endif
+
+      // ####### VARIANT_PWM with DUAL_INPUTS (Two Triggers: Gas + Brake/Reverse) #######
+      #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
+      if (inIdx == CONTROL_ADC) {                                   // Only use implementation below if ADC triggers are in use
+        // Double-tap detection on Brake trigger for Reverse functionality
+        if (speedAvgAbs < 60) {                                     // Only detect taps when nearly stopped
+          multipleTapDet(input1[inIdx].cmd, HAL_GetTick(), &MultipleTapBrake);
+        }
+
+        // If Brake trigger is pressed, reduce Gas to avoid simultaneous gas+brake
+        if (input1[inIdx].cmd > 30) {
+          input2[inIdx].cmd = (int16_t)((input2[inIdx].cmd * speedBlend) >> 15);
+        }
+
+        // Brake effect: opposite to direction of motion, fades near standstill
+        if (speedAvg > 0) {
+          input1[inIdx].cmd = (int16_t)((-input1[inIdx].cmd * speedBlend) >> 15);
+        } else {
+          input1[inIdx].cmd = (int16_t)(( input1[inIdx].cmd * speedBlend) >> 15);
+        }
+      }
       #endif
 
       // ####### LOW-PASS FILTER #######
@@ -370,6 +392,20 @@ int main(void) {
           speed = steer - speed;                // Reverse driving: in this case steer = Brake, speed = Throttle
         }
         steer = 0;                              // Do not apply steering to avoid side effects if STEER_COEFFICIENT is NOT 0
+      }
+      #endif
+
+      // ####### VARIANT_PWM with DUAL_INPUTS: Combine Gas and Brake triggers #######
+      #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
+      if (inIdx == CONTROL_ADC) {               // Only when ADC triggers are active
+        // steer = processed brake trigger (already inverted based on direction above)
+        // speed = processed gas trigger
+        if (!MultipleTapBrake.b_multipleTap) {  // Forward driving mode
+          speed = steer + speed;                // Brake subtracts from throttle (steer is negative when braking forward)
+        } else {                                // Reverse driving mode (activated by double-tap brake)
+          speed = steer - speed;                // In reverse: gas goes negative, brake brings back to zero
+        }
+        steer = 0;                              // No steering from triggers, only from PWM auxiliary if connected
       }
       #endif
 

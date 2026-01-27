@@ -324,12 +324,9 @@ int main(void) {
       // ####### VARIANT_PWM with DUAL_INPUTS (Two Triggers: Gas + Brake/Reverse) #######
       #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
       if (inIdx == CONTROL_ADC) {                                   // Only use implementation below if ADC triggers are in use
-        // Simple bidirectional control:
-        // input1 (brake/reverse trigger) → reverse direction (negate)
-        // input2 (gas trigger) → forward direction (keep positive)
-        // Both pressed → cancel out
-        input1[inIdx].cmd = -input1[inIdx].cmd;  // 0..1000 → 0..-1000
-        // input2 remains 0..1000 (forward)
+        // Simple bidirectional: brake trigger = reverse (negate), gas trigger = forward
+        input1[inIdx].cmd = -input1[inIdx].cmd;                     // 0..1000 → 0..-1000 (reverse)
+        // input2 stays 0..1000 (forward)
       }
       #endif
 
@@ -388,8 +385,8 @@ int main(void) {
       // ####### VARIANT_PWM with DUAL_INPUTS: Combine Gas and Brake triggers #######
       #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
       if (inIdx == CONTROL_ADC) {               // Only when ADC triggers are active
-        // Simple combination: forward (speed) + reverse (steer, already negated)
-        speed = steer + speed;
+        // steer = reverse (already negated above), speed = forward
+        speed = steer + speed;                  // Sum: forward + reverse = net direction
         steer = 0;
       }
       #endif

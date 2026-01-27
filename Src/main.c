@@ -324,22 +324,12 @@ int main(void) {
       // ####### VARIANT_PWM with DUAL_INPUTS (Two Triggers: Gas + Brake/Reverse) #######
       #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
       if (inIdx == CONTROL_ADC) {                                   // Only use implementation below if ADC triggers are in use
-        // Double-tap detection on Brake trigger for Reverse functionality
-        if (speedAvgAbs < 60) {                                     // Only detect taps when nearly stopped
-          multipleTapDet(input1[inIdx].cmd, HAL_GetTick(), &MultipleTapBrake);
-        }
-
-        // If Brake trigger is pressed, reduce Gas to avoid simultaneous gas+brake
-        if (input1[inIdx].cmd > 30) {
-          input2[inIdx].cmd = (int16_t)((input2[inIdx].cmd * speedBlend) >> 15);
-        }
-
-        // Brake effect: opposite to direction of motion, fades near standstill
-        if (speedAvg > 0) {
-          input1[inIdx].cmd = (int16_t)((-input1[inIdx].cmd * speedBlend) >> 15);
-        } else {
-          input1[inIdx].cmd = (int16_t)(( input1[inIdx].cmd * speedBlend) >> 15);
-        }
+        // Simple bidirectional control:
+        // input1 (brake/reverse trigger) → reverse direction (negate)
+        // input2 (gas trigger) → forward direction (keep positive)
+        // Both pressed → cancel out
+        input1[inIdx].cmd = -input1[inIdx].cmd;  // 0..1000 → 0..-1000
+        // input2 remains 0..1000 (forward)
       }
       #endif
 
@@ -398,14 +388,9 @@ int main(void) {
       // ####### VARIANT_PWM with DUAL_INPUTS: Combine Gas and Brake triggers #######
       #if defined(VARIANT_PWM) && defined(DUAL_INPUTS)
       if (inIdx == CONTROL_ADC) {               // Only when ADC triggers are active
-        // steer = processed brake trigger (already inverted based on direction above)
-        // speed = processed gas trigger
-        if (!MultipleTapBrake.b_multipleTap) {  // Forward driving mode
-          speed = steer + speed;                // Brake subtracts from throttle (steer is negative when braking forward)
-        } else {                                // Reverse driving mode (activated by double-tap brake)
-          speed = steer - speed;                // In reverse: gas goes negative, brake brings back to zero
-        }
-        steer = 0;                              // No steering from triggers, only from PWM auxiliary if connected
+        // Simple combination: forward (speed) + reverse (steer, already negated)
+        speed = steer + speed;
+        steer = 0;
       }
       #endif
 

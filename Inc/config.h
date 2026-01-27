@@ -234,11 +234,11 @@
     #define CONTROL_PWM_RIGHT     1       // use RC PWM as input on the RIGHT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART3!
 
     // ADC Triggers: Type 1 = Normal Pot (0 to max range), no deadband needed for triggers
-    #define PRI_INPUT1            1,   500, 0, 4000,   0  // Brake trigger:  TYPE, MIN, MID, MAX, DEADBAND. Calibrate MIN/MAX with your triggers!
-    #define PRI_INPUT2            1,   500, 0, 4000,   0  // Gas trigger:    TYPE, MIN, MID, MAX, DEADBAND. Calibrate MIN/MAX with your triggers!
+    #define PRI_INPUT1            3,   0, 0, 4095,   0  // Brake trigger:  TYPE, MIN, MID, MAX, DEADBAND. Calibrate MIN/MAX with your triggers!
+    #define PRI_INPUT2            3,   0, 0, 4095,   0  // Gas trigger:    TYPE, MIN, MID, MAX, DEADBAND. Calibrate MIN/MAX with your triggers!
     // PWM Auxiliary: Type 2 = Middle Resting (for steering if needed)
-    #define AUX_INPUT1            2, -1000, 0, 1000, 100  // PWM CH1 steering: TYPE, MIN, MID, MAX, DEADBAND
-    #define AUX_INPUT2            2, -1000, 0, 1000, 100  // PWM CH2 (unused): TYPE, MIN, MID, MAX, DEADBAND
+    #define AUX_INPUT1            3, -1000, 0, 1000, 30  // PWM CH1 steering: TYPE, MIN, MID, MAX, DEADBAND
+    #define AUX_INPUT2            3, -1000, 0, 1000, 30  // PWM CH2 (unused): TYPE, MIN, MID, MAX, DEADBAND
   #else
     #define FLASH_WRITE_KEY       0x1005  // Flash memory writing key. Change this key to ignore the input calibrations from the flash memory and use the ones in config.h
     //#define CONTROL_PWM_LEFT      0       // use RC PWM as input on the LEFT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART2!

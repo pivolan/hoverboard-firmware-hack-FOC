@@ -190,13 +190,13 @@
 #define DEFAULT_RATE                20000   // 30.0f [-] lower value == slower rate [0, 32767] = [0.0, 2047.9375]. Do NOT make rate negative (>32767)
 #define DEFAULT_FILTER              6553  // Default for FILTER 0.1f [-] lower value == softer filter [0, 65535] = [0.0 - 1.0].
 #define DEFAULT_SPEED_COEFFICIENT   16384 // Default for SPEED_COEFFICIENT 1.0f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case 16384 = 1.0 * 2^14
-#define DEFAULT_STEER_COEFFICIENT   4000  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
+#define DEFAULT_STEER_COEFFICIENT   7000  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
 
 // Acceleration limiting with feedback (limits real motor acceleration, not just command rate)
 // ACCEL_RATE: used when moving away from zero (increasing absolute speed): 0 → ±1000
 // DECEL_RATE: used when moving toward zero (decreasing absolute speed): ±1000 → 0
-#define ACCEL_RATE                  100     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
-#define DECEL_RATE                  150    // [RPM/cycle] Deceleration rate: 150 RPM per 5ms = 30000 RPM/s. Higher = faster braking
+#define ACCEL_RATE                  70     // [RPM/cycle] Acceleration rate: 75 RPM per 5ms = 15000 RPM/s. Lower = slower acceleration
+#define DECEL_RATE                  120    // [RPM/cycle] Deceleration rate: 150 RPM per 5ms = 30000 RPM/s. Higher = faster braking
 #define THROTTLE_RELEASE_TIMEOUT    10    // [cycles] Timeout before reducing current after throttle release: 600 cycles * 5ms = 3 seconds
 // ######################### END OF DEFAULT SETTINGS ##########################
 
@@ -238,8 +238,8 @@
     #define FLASH_WRITE_KEY       0x1005  // Flash memory writing key. Change this key to ignore the input calibrations from the flash memory and use the ones in config.h
     #define CONTROL_PWM_LEFT      0       // use RC PWM as input on the LEFT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART2!
     //#define CONTROL_PWM_RIGHT     0       // use RC PWM as input on the RIGHT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART3!
-    #define PRI_INPUT1            3, -1000, 0, 1000, 30  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-    #define PRI_INPUT2            3, -1000, 0, 1000, 30  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
+    #define PRI_INPUT1            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
+    #define PRI_INPUT2            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
   #endif
 
   // #define TANK_STEERING                   // use for tank steering, each input controls each wheel

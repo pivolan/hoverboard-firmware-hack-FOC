@@ -2620,6 +2620,17 @@ void BLDC_controller_step(RT_MODEL *const rtM)
 
           /* End of Outputs for SubSystem: '<S61>/PI_clamp_fixdt' */
 
+          /* CUSTOM: Prevent active braking — do not apply reverse torque.
+           * If target >= 0 (forward or released), clamp Vq >= 0 (no braking, just coast).
+           * If target <= 0 (reverse or released), clamp Vq <= 0 (no braking, just coast).
+           * Active deceleration only happens when the opposite trigger is pressed
+           * (target becomes negative while moving forward, or positive while moving backward). */
+          if (rtb_Saturation >= 0 && rtDW->Merge < 0) {
+            rtDW->Merge = 0;
+          } else if (rtb_Saturation <= 0 && rtDW->Merge > 0) {
+            rtDW->Merge = 0;
+          }
+
           /* End of Outputs for SubSystem: '<S59>/Speed_Mode' */
           break;
 

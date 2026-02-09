@@ -158,6 +158,11 @@ static int16_t    speed;                // local variable for speed. -1000 to 10
   static int32_t  speedFixdt;           // local fixed-point variable for speed low-pass filter
 #endif
 
+static int16_t currentLimit = 0;        // Current limit for soft start/stop
+static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximum current in fixdt(1,16,4)
+static const int16_t minCurrentLimit = 16;  // Minimum current ~1mA in fixdt(1,16,4) to keep current limiting active
+static uint16_t throttle_release_counter = 0;  // Counter for throttle release timeout
+
 static uint32_t    buzzerTimer_prev = 0;
 static uint32_t    inactivity_timeout_counter;
 static MultipleTap MultipleTapBrake;    // define multiple tap functionality for the Brake pedal
@@ -318,17 +323,48 @@ int main(void) {
       }
       #endif
 
-      #if defined(TANK_STEERING) && !defined(VARIANT_HOVERCAR) && !defined(VARIANT_SKATEBOARD) 
+      // ####### ACCELERATION LIMITER WITH FEEDBACK #######
+      // Limit real acceleration/deceleration based on actual motor speed (speedAvg)
+      // This prevents command from running away from real speed
+      {
+        int16_t speedAvg_scaled = (speedAvg * 1000) / N_MOT_MAX;
+        int16_t accelError = speed - speedAvg_scaled;
+
+        // Determine if accelerating (away from zero) or decelerating (toward zero)
+        int16_t abs_speed_desired = ABS(speed);
+        int16_t abs_speed_current = ABS(speedAvg_scaled);
+        uint8_t opposite_direction = (speed >= 0 && speedAvg_scaled < 0) || (speed < 0 && speedAvg_scaled >= 0);
+        uint8_t accelerating = !opposite_direction && (abs_speed_desired > abs_speed_current);
+        int16_t accelRate = accelerating ? ACCEL_RATE : DECEL_RATE;
+
+        if (accelError > accelRate) {
+          speed = speedAvg_scaled + accelRate;
+        } else if (accelError < -accelRate) {
+          speed = speedAvg_scaled - accelRate;
+        }
+      }
+
+      #if defined(TANK_STEERING) && !defined(VARIANT_HOVERCAR) && !defined(VARIANT_SKATEBOARD)
         // Tank steering (no mixing)
-        cmdL = steer; 
+        cmdL = steer;
         cmdR = speed;
-      #else 
+      #else
         // ####### MIXER #######
         mixerFcn(speed << 4, steer << 4, &cmdR, &cmdL);   // This function implements the equations above
       #endif
 
+      // ####### SOFT START/STOP - CURRENT RAMPING #######
+      if (ABS(input1[inIdx].cmd) < 50 && ABS(input2[inIdx].cmd) < 50) {
+        throttle_release_counter++;
+        if (throttle_release_counter >= THROTTLE_RELEASE_TIMEOUT) {
+          rtP_Left.i_max = rtP_Right.i_max = minCurrentLimit;
+        }
+      } else {
+        throttle_release_counter = 0;
+        rtP_Left.i_max = rtP_Right.i_max = maxCurrentLimit;
+      }
 
-      // ####### SET OUTPUTS (if the target change is less than +/- 100) #######
+      // ####### SET OUTPUTS #######
       #ifdef INVERT_R_DIRECTION
         pwmr = cmdR;
       #else

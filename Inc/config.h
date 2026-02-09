@@ -191,6 +191,13 @@
 #define DEFAULT_FILTER              6500  // Default for FILTER 0.1f [-] lower value == softer filter [0, 65535] = [0.0 - 1.0].
 #define DEFAULT_SPEED_COEFFICIENT   16000 // Default for SPEED_COEFFICIENT 1.0f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case 16384 = 1.0 * 2^14
 #define DEFAULT_STEER_COEFFICIENT   8000  // Defualt for STEER_COEFFICIENT 0.5f [-] higher value == stronger. [0, 65535] = [-2.0 - 2.0]. In this case  8192 = 0.5 * 2^14. If you do not want any steering, set it to 0.
+
+// Acceleration limiting with feedback (limits real motor acceleration, not just command rate)
+// ACCEL_RATE: used when moving away from zero (increasing absolute speed): 0 → ±1000
+// DECEL_RATE: used when moving toward zero (decreasing absolute speed): ±1000 → 0
+#define ACCEL_RATE                  100     // [cmd/cycle] Acceleration rate limit per 5ms cycle. Lower = slower acceleration
+#define DECEL_RATE                  150     // [cmd/cycle] Deceleration rate limit per 5ms cycle. Higher = faster braking
+#define THROTTLE_RELEASE_TIMEOUT    10      // [cycles] Timeout before reducing current after throttle release: 10 cycles * 5ms = 50ms
 // ######################### END OF DEFAULT SETTINGS ##########################
 
 

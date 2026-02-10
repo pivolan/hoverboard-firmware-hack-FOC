@@ -158,7 +158,6 @@ static int16_t    speed;                // local variable for speed. -1000 to 10
   static int32_t  speedFixdt;           // local fixed-point variable for speed low-pass filter
 #endif
 
-static int16_t currentLimit = 0;        // Current limit for soft start/stop
 static const int16_t maxCurrentLimit = (I_MOT_MAX * A2BIT_CONV) << 4;  // Maximum current in fixdt(1,16,4)
 static const int16_t minCurrentLimit = 16;  // Minimum current ~1mA in fixdt(1,16,4) to keep current limiting active
 static const int16_t currentRampStepUp = ((I_MOT_MAX * A2BIT_CONV) << 4) / 400; // Ramp UP in 400 steps (~2000ms @ 5ms loop) - 8x slower
@@ -167,14 +166,6 @@ static uint16_t throttle_release_counter = 0;  // Counter for throttle release t
 
 static uint32_t    buzzerTimer_prev = 0;
 static uint32_t    inactivity_timeout_counter;
-static MultipleTap MultipleTapBrake;    // define multiple tap functionality for the Brake pedal
-
-static uint16_t rate = RATE; // Adjustable rate to support multiple drive modes on startup
-
-#ifdef MULTI_MODE_DRIVE
-  static uint8_t drive_mode;
-  static uint16_t max_speed;
-#endif
 
 
 int main(void) {
@@ -220,40 +211,8 @@ int main(void) {
   int32_t board_temp_adcFixdt = adc_buffer.temp << 16;  // Fixed-point filter output initialized with current ADC converted to fixed-point
   int16_t board_temp_adcFilt  = adc_buffer.temp;
 
-  #ifdef MULTI_MODE_DRIVE
-    if (adc_buffer.l_tx2 > input1[0].min + 50 && adc_buffer.l_rx2 > input2[0].min + 50) {
-      drive_mode = 2;
-      max_speed = MULTI_MODE_DRIVE_M3_MAX;
-      rate = MULTI_MODE_DRIVE_M3_RATE;
-      rtP_Left.n_max = rtP_Right.n_max = MULTI_MODE_M3_N_MOT_MAX << 4;
-      rtP_Left.i_max = rtP_Right.i_max = (MULTI_MODE_M3_I_MOT_MAX * A2BIT_CONV) << 4;
-    } else if (adc_buffer.l_tx2 > input1[0].min + 50) {
-      drive_mode = 1;
-      max_speed = MULTI_MODE_DRIVE_M2_MAX;
-      rate = MULTI_MODE_DRIVE_M2_RATE;
-      rtP_Left.n_max = rtP_Right.n_max = MULTI_MODE_M2_N_MOT_MAX << 4;
-      rtP_Left.i_max = rtP_Right.i_max = (MULTI_MODE_M2_I_MOT_MAX * A2BIT_CONV) << 4;
-    } else {
-      drive_mode = 0;
-      max_speed = MULTI_MODE_DRIVE_M1_MAX;
-      rate = MULTI_MODE_DRIVE_M1_RATE;
-      rtP_Left.n_max = rtP_Right.n_max = MULTI_MODE_M1_N_MOT_MAX << 4;
-      rtP_Left.i_max = rtP_Right.i_max = (MULTI_MODE_M1_I_MOT_MAX * A2BIT_CONV) << 4;
-    }
-
-    printf("Drive mode %i selected: max_speed:%i acc_rate:%i \r\n", drive_mode, max_speed, rate);
-  #endif
-
   // Loop until button is released
   while(HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN)) { HAL_Delay(10); }
-
-  #ifdef MULTI_MODE_DRIVE
-    // Wait until triggers are released. Exit if timeout elapses (to unblock if the inputs are not calibrated)
-    int iTimeout = 0;
-    while((adc_buffer.l_rx2 + adc_buffer.l_tx2) >= (input1[0].min + input2[0].min) && iTimeout++ < 300) {
-      HAL_Delay(10);
-    }
-  #endif
 
   while(1) {
     if (buzzerTimer - buzzerTimer_prev > 16*DELAY_IN_MAIN_LOOP) {   // 1 ms = 16 ticks buzzerTimer
@@ -274,104 +233,71 @@ int main(void) {
         #endif
       }
 
-      // ####### VARIANT_HOVERCAR #######
-      #if defined(VARIANT_HOVERCAR) || defined(VARIANT_SKATEBOARD) || defined(ELECTRIC_BRAKE_ENABLE)
-        uint16_t speedBlend;                                        // Calculate speed Blend, a number between [0, 1] in fixdt(0,16,15)
-        speedBlend = (uint16_t)(((CLAMP(speedAvgAbs,10,60) - 10) << 15) / 50); // speedBlend [0,1] is within [10 rpm, 60rpm]
-      #endif
-
       #ifdef STANDSTILL_HOLD_ENABLE
         standstillHold();                                           // Apply Standstill Hold functionality. Only available and makes sense for VOLTAGE or TORQUE Mode
       #endif
 
-      #ifdef VARIANT_HOVERCAR
-      if (inIdx == CONTROL_ADC) {                                   // Only use use implementation below if pedals are in use (ADC input)
-        if (speedAvgAbs < 60) {                                     // Check if Hovercar is physically close to standstill to enable Double tap detection on Brake pedal for Reverse functionality
-          multipleTapDet(input1[inIdx].cmd, HAL_GetTick(), &MultipleTapBrake); // Brake pedal in this case is "input1" variable
-        }
-
-        if (input1[inIdx].cmd > 30) {                               // If Brake pedal (input1) is pressed, bring to 0 also the Throttle pedal (input2) to avoid "Double pedal" driving
-          input2[inIdx].cmd = (int16_t)((input2[inIdx].cmd * speedBlend) >> 15);
-          cruiseControl((uint8_t)rtP_Left.b_cruiseCtrlEna);         // Cruise control deactivated by Brake pedal if it was active
-        }
-      }
-      #endif
-
-      #ifdef ELECTRIC_BRAKE_ENABLE
-        electricBrake(speedBlend, MultipleTapBrake.b_multipleTap);  // Apply Electric Brake. Only available and makes sense for TORQUE Mode
-      #endif
-
-      #ifdef VARIANT_HOVERCAR
-      if (inIdx == CONTROL_ADC) {                                   // Only use use implementation below if pedals are in use (ADC input)
-        if (speedAvg > 0) {                                         // Make sure the Brake pedal is opposite to the direction of motion AND it goes to 0 as we reach standstill (to avoid Reverse driving by Brake pedal) 
-          input1[inIdx].cmd = (int16_t)((-input1[inIdx].cmd * speedBlend) >> 15);
-        } else {
-          input1[inIdx].cmd = (int16_t)(( input1[inIdx].cmd * speedBlend) >> 15);
-        }
-      }
-      #endif
-
-      #ifdef VARIANT_SKATEBOARD
-        if (input2[inIdx].cmd < 0) {                                // When Throttle is negative, it acts as brake. This condition is to make sure it goes to 0 as we reach standstill (to avoid Reverse driving) 
-          if (speedAvg > 0) {                                       // Make sure the braking is opposite to the direction of motion
-            input2[inIdx].cmd  = (int16_t)(( input2[inIdx].cmd * speedBlend) >> 15);
-          } else {
-            input2[inIdx].cmd  = (int16_t)((-input2[inIdx].cmd * speedBlend) >> 15);
-          }
-        }
-      #endif
-
       // ####### LOW-PASS FILTER #######
-      rateLimiter16(input1[inIdx].cmd, rate, &steerRateFixdt);
-      rateLimiter16(input2[inIdx].cmd, rate, &speedRateFixdt);
+      rateLimiter16(input1[inIdx].cmd, RATE, &steerRateFixdt);
+      rateLimiter16(input2[inIdx].cmd, RATE, &speedRateFixdt);
       filtLowPass32(steerRateFixdt >> 4, FILTER, &steerFixdt);
       filtLowPass32(speedRateFixdt >> 4, FILTER, &speedFixdt);
       steer = (int16_t)(steerFixdt >> 16);  // convert fixed-point to integer
       speed = (int16_t)(speedFixdt >> 16);  // convert fixed-point to integer
 
-      // ####### ACCELERATION LIMITER WITH FEEDBACK #######
-      // Limit real acceleration/deceleration based on actual motor speed (speedAvg)
-      // This prevents command from running away from real speed
-      // Scale speedAvg from RPM [-N_MOT_MAX, N_MOT_MAX] to command range [-1000, 1000]
-      int16_t speedAvg_scaled = (speedAvg * 1000) / N_MOT_MAX;
-      int16_t accelError = speed - speedAvg_scaled;  // Difference between desired and actual speed
+      // ####### DUAL TRIGGER LOGIC (ADC input) #######
+      // For ADC: input1 = forward trigger (0..1000), input2 = reverse trigger (0..1000)
+      // Both triggers pressed = active brake to zero
+      // steer/speed here are just filter output names from input1/input2 paths
+      uint8_t bothTriggers = 0;
+      #ifdef CONTROL_ADC
+      if (inIdx == CONTROL_ADC) {
+        int16_t fwd = steer;   // input1 filtered → forward trigger
+        int16_t rev = speed;   // input2 filtered → reverse trigger
 
-      // Determine if we're accelerating or decelerating:
-      // - If direction change (opposite signs) → always deceleration (braking through zero)
-      // - If same direction: compare absolute values
-      //   - |desired| > |current| → acceleration (moving away from zero)
-      //   - |desired| < |current| → deceleration (moving toward zero)
+        if (fwd > 50 && rev > 50) {
+          speed = 0;           // Both triggers → active brake to zero
+          bothTriggers = 1;
+        } else if (fwd > 50) {
+          speed = fwd;         // Forward
+        } else if (rev > 50) {
+          speed = -rev;        // Reverse
+        } else {
+          speed = 0;           // Nothing pressed
+        }
+        steer = 0;             // ADC triggers don't steer
+      }
+      #endif
+
+      // ####### ACCELERATION LIMITER WITH FEEDBACK #######
+      int16_t speedAvg_scaled = (speedAvg * 1000) / N_MOT_MAX;
+      int16_t accelError = speed - speedAvg_scaled;
+
       int16_t abs_speed_desired = abs(speed);
       int16_t abs_speed_current = abs(speedAvg_scaled);
       uint8_t opposite_direction = (speed >= 0 && speedAvg_scaled < 0) || (speed < 0 && speedAvg_scaled >= 0);
       uint8_t accelerating = !opposite_direction && (abs_speed_desired > abs_speed_current);
-      int16_t rate = accelerating ? ACCEL_RATE : DECEL_RATE;
+      int16_t accelRate = accelerating ? ACCEL_RATE : DECEL_RATE;
 
-      if (accelError > rate) {
-        speed = speedAvg_scaled + rate;
-      } else if (accelError < -rate) {
-        speed = speedAvg_scaled - rate;
+      if (accelError > accelRate) {
+        speed = speedAvg_scaled + accelRate;
+      } else if (accelError < -accelRate) {
+        speed = speedAvg_scaled - accelRate;
       }
-      // Otherwise speed remains as calculated (within limits)
 
-      // ####### VARIANT_HOVERCAR #######
-      #ifdef VARIANT_HOVERCAR
-      if (inIdx == CONTROL_ADC) {               // Only use use implementation below if pedals are in use (ADC input)
-
-        #ifdef MULTI_MODE_DRIVE
-        if (speed >= max_speed) {
-          speed = max_speed;
+      // ####### ANTI-BRAKING / COASTING #######
+      // If wheel spins faster than target in same direction → coast (set speed = actual, so PI error ≈ 0, Vq ≈ 0)
+      // Exception: both ADC triggers pressed (bothTriggers) → allow PI to actively brake to zero
+      if (!bothTriggers) {
+        if (speed > 0 && speedAvg_scaled > speed) {
+          speed = speedAvg_scaled;              // Coast forward (wheel faster than target)
+        } else if (speed < 0 && speedAvg_scaled < speed) {
+          speed = speedAvg_scaled;              // Coast reverse (wheel faster than target)
+        } else if (speed == 0 && speedAvg_scaled != 0) {
+          speed = speedAvg_scaled;              // Throttle released, wheel still spinning → coast
         }
-        #endif
-
-        if (!MultipleTapBrake.b_multipleTap) {  // Check driving direction
-          speed = steer + speed;                // Forward driving: in this case steer = Brake, speed = Throttle
-        } else {
-          speed = steer - speed;                // Reverse driving: in this case steer = Brake, speed = Throttle
-        }
-        steer = 0;                              // Do not apply steering to avoid side effects if STEER_COEFFICIENT is NOT 0
       }
-      #endif
+      // When bothTriggers: speed=0, PI will actively brake to zero — desired behavior
 
       #if defined(TANK_STEERING) && !defined(VARIANT_HOVERCAR) && !defined(VARIANT_SKATEBOARD) 
         // Tank steering (no mixing)
@@ -615,7 +541,7 @@ int main(void) {
       beepCount(0, 10, 6);
     } else if (BAT_LVL2_ENABLE && batVoltage < BAT_LVL2) {                                            // 1 beep slow (medium pitch): Low bat 2
       beepCount(0, 10, 30);
-    } else if (BEEPS_BACKWARD && (((cmdR < -50 || cmdL < -50) && speedAvg < 0) || MultipleTapBrake.b_multipleTap)) { // 1 beep fast (high pitch): Backward spinning motors
+    } else if (BEEPS_BACKWARD && ((cmdR < -50 || cmdL < -50) && speedAvg < 0)) { // 1 beep fast (high pitch): Backward spinning motors
       beepCount(0, 5, 1);
       backwardDrive = 1;
     } else {  // do not beep

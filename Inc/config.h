@@ -221,38 +221,28 @@
 
 // ################################# VARIANT_PWM SETTINGS ##############################
 #ifdef VARIANT_PWM
-/* ###### CONTROL VIA RC REMOTE ######
- * Right sensor board cable. Connect PA2 to channel 1 and PA3 to channel 2 on receiver.
- * Channel 1: steering, Channel 2: speed.
+/* ###### DUAL CONTROL: ADC triggers (left cable) + RC PWM remote (right cable) ######
+ * Left cable:  ADC triggers (PA2=l_tx2=forward, PA3=l_rx2=reverse). Normal Pot 0→max.
+ * Right cable: RC PWM remote (PB10=ch1=steer, PB11=ch2=speed). Middle Resting Pot.
 */
-  // #define DUAL_INPUTS                     // ADC*(Primary) + PWM(Auxiliary). Uncomment this to use Dual-inputs
-  #ifdef DUAL_INPUTS
-    #define FLASH_WRITE_KEY       0x1105  // Flash memory writing key. Change this key to ignore the input calibrations from the flash memory and use the ones in config.h
-    #define CONTROL_ADC           0       // use ADC as input. Number indicates priority for dual-input. Disable CONTROL_SERIAL_USART2, FEEDBACK_SERIAL_USART2, DEBUG_SERIAL_USART2!
-    #define CONTROL_PWM_RIGHT     1       // use RC PWM as input on the RIGHT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART3!
-    #define PRI_INPUT1            3,     0, 0, 4095,   0  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-    #define PRI_INPUT2            3,     0, 0, 4095,   0  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-    #define AUX_INPUT1            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-    #define AUX_INPUT2            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-  #else
-    #define FLASH_WRITE_KEY       0x1005  // Flash memory writing key. Change this key to ignore the input calibrations from the flash memory and use the ones in config.h
-    #define CONTROL_PWM_LEFT      0       // use RC PWM as input on the LEFT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART2!
-    //#define CONTROL_PWM_RIGHT     0       // use RC PWM as input on the RIGHT cable. Number indicates priority for dual-input. Disable DEBUG_SERIAL_USART3!
-    #define PRI_INPUT1            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-    #define PRI_INPUT2            3, -1000, 0, 1000, 100  // TYPE, MIN, MID, MAX, DEADBAND. See INPUT FORMAT section
-  #endif
+  #define DUAL_INPUTS
+  #define FLASH_WRITE_KEY       0x1105  // Flash memory writing key. Change this key to ignore the input calibrations from the flash memory and use the ones in config.h
+  #define CONTROL_ADC           0       // ADC triggers — primary input. Disable CONTROL_SERIAL_USART2, FEEDBACK_SERIAL_USART2, DEBUG_SERIAL_USART2!
+  #define CONTROL_PWM_RIGHT     1       // RC PWM remote — auxiliary input. Disable DEBUG_SERIAL_USART3!
+
+  // ADC triggers: Normal Pot (type 1), 0→max, no deadband
+  #define PRI_INPUT1            1,     0, 0, 4095,   0  // Forward trigger (l_tx2). TYPE, MIN, MID, MAX, DEADBAND.
+  #define PRI_INPUT2            1,     0, 0, 4095,   0  // Reverse trigger (l_rx2). TYPE, MIN, MID, MAX, DEADBAND.
+
+  // PWM remote: Middle Resting Pot (type 2), center=0, deadband=100
+  #define AUX_INPUT1            3, -1000, 0, 1000, 100  // Steer. TYPE, MIN, MID, MAX, DEADBAND.
+  #define AUX_INPUT2            3, -1000, 0, 1000, 100  // Speed. TYPE, MIN, MID, MAX, DEADBAND.
 
   // #define TANK_STEERING                   // use for tank steering, each input controls each wheel
   // #define INVERT_R_DIRECTION
   // #define INVERT_L_DIRECTION
   // #define SUPPORT_BUTTONS_LEFT            // use left sensor board cable for button inputs.  Disable DEBUG_SERIAL_USART2!
   // #define SUPPORT_BUTTONS_RIGHT           // use right sensor board cable for button inputs. Disable DEBUG_SERIAL_USART3!
-
-//  #if defined(CONTROL_PWM_RIGHT) && !defined(DUAL_INPUTS)
-//    #define DEBUG_SERIAL_USART2           // left sensor cable debug
-//  #elif defined(CONTROL_PWM_LEFT) && !defined(DUAL_INPUTS)
-//    #define DEBUG_SERIAL_USART3           // right sensor cable debug
-//  #endif
 #endif
 // ############################# END OF VARIANT_PWM SETTINGS ############################
 
@@ -328,34 +318,7 @@
   // #define ELECTRIC_BRAKE_MAX    100         // (0, 500) Maximum electric brake to be applied when input torque request is 0 (pedal fully released).
   // #define ELECTRIC_BRAKE_THRES  120         // (0, 500) Threshold below at which the electric brake starts engaging.
 
-  #define MULTI_MODE_DRIVE                  // This option enables the selection of 3 driving modes at start-up using combinations of Brake and Throttle pedals (see below)
-  #ifdef MULTI_MODE_DRIVE
-      // BEGINNER MODE:     Power ON + Brake [released] + Throttle [released or pressed]
-      #define MULTI_MODE_DRIVE_M1_MAX   175
-      #define MULTI_MODE_DRIVE_M1_RATE  250
-      #define MULTI_MODE_M1_I_MOT_MAX   4
-      #define MULTI_MODE_M1_N_MOT_MAX   30
-
-      // INTERMEDIATE MODE: Power ON + Brake [pressed] + Throttle [released]
-      #define MULTI_MODE_DRIVE_M2_MAX   500
-      #define MULTI_MODE_DRIVE_M2_RATE  300
-      #define MULTI_MODE_M2_I_MOT_MAX   8
-      #define MULTI_MODE_M2_N_MOT_MAX   80
-
-      // ADVANCED MODE:    Power ON + Brake [pressed] + Throttle [pressed]
-      #define MULTI_MODE_DRIVE_M3_MAX   1000
-      #define MULTI_MODE_DRIVE_M3_RATE  450
-      #define MULTI_MODE_M3_I_MOT_MAX   I_MOT_MAX
-      #define MULTI_MODE_M3_N_MOT_MAX   N_MOT_MAX
-  #endif
-
 #endif
-
-// Multiple tap detection: default DOUBLE Tap on Brake pedal (4 pulses)
-#define MULTIPLE_TAP_NR           2 * 2       // [-] Define tap number: MULTIPLE_TAP_NR = number_of_taps * 2, number_of_taps = 1 (for single taping), 2 (for double tapping), 3 (for triple tapping), etc...
-#define MULTIPLE_TAP_HI           600         // [-] Multiple tap detection High hysteresis threshold
-#define MULTIPLE_TAP_LO           200         // [-] Multiple tap detection Low hysteresis threshold
-#define MULTIPLE_TAP_TIMEOUT      2000        // [ms] Multiple tap detection Timeout period. The taps need to happen within this time window to be accepted.
 // ######################## END OF VARIANT_HOVERCAR SETTINGS #########################
 
 

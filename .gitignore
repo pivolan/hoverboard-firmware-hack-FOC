@@ -8,3 +8,6 @@ MDK-ARM/Objects/
 MDK-ARM/RTE/
 MDK-ARM/*.uvguix.*
 build/
+CLAUDE.md
+.claude/
+telegram_send.sh

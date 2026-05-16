@@ -354,6 +354,22 @@ int main(void) {
       }
       // Otherwise speed remains as calculated (within limits)
 
+      // ####### SOFT RPM LIMITER (for SIN+VLT: no internal n_max enforcement) #######
+      // When measured speed exceeds N_MOT_MAX, proportionally reduce voltage command.
+      // No forced braking — just less voltage, motor slows by itself under load.
+      #define RPM_LIMIT_P  3  // P-gain: higher = harder cutoff, lower = softer
+      int16_t overspeed = abs(speedAvg) - N_MOT_MAX;
+      if (overspeed > 0) {
+        int16_t reduction = overspeed * RPM_LIMIT_P;
+        if (speed > 0) {
+          speed -= reduction;
+          if (speed < 0) speed = 0;
+        } else if (speed < 0) {
+          speed += reduction;
+          if (speed > 0) speed = 0;
+        }
+      }
+
       // ####### VARIANT_HOVERCAR #######
       #ifdef VARIANT_HOVERCAR
       if (inIdx == CONTROL_ADC) {               // Only use use implementation below if pedals are in use (ADC input)

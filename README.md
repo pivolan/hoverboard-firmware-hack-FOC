@@ -1,160 +1,72 @@
-# hoverboard-firmware-hack-FOC
-[![Build status](https://github.com/EFeru/hoverboard-firmware-hack-FOC/actions/workflows/build_on_commit.yml/badge.svg)](https://github.com/EFeru/hoverboard-firmware-hack-FOC/actions/workflows/build_on_commit.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=CU2SWN2XV9SCY&currency_code=EUR&source=url)
+# Hoverboard FOC Firmware - кастомные прошивки для электротранспорта
 
-This repository implements Field Oriented Control (FOC) for stock hoverboards. Compared to the commutation method, this new FOC control method offers superior performance featuring:
- - reduced noise and vibrations 	
- - smooth torque output and improved motor efficiency. Thus, lower energy consumption
- - field weakening to increase maximum speed range
+Форк hoverboard-firmware-hack-FOC для управления моторами от гироскутеров в составе самодельного электротранспорта (мопед, карт, тележка). Используются стандартные платы гироскутера STM32F103 с моторами на датчиках Холла.
 
-Table of Contents
-=======================
+Основа — FOC и синусоидальное управление BLDC моторами. В каждой ветке своя конфигурация под конкретную задачу: тип управления, режим контроля, лимиты скорости и тока, входы (ADC триггеры, RC PWM пульт).
 
-* **Wiki:** please check the wiki pages for [Getting Started](https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki#getting-started) and for [Troubleshooting](https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki#troubleshooting)
-* [Hardware](#hardware)
-* [FOC Firmware](#foc-firmware)
-* [Example Variants](#example-variants)
-* [Projects and Links](#projects-and-links)
-* [Contributions](#contributions)
+## Сборка
 
-#### The hoverboards with mainboards also come with 2 sideboards(not [splitboards](https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki/Firmware-Compatibility#split-boards)), check the following [wiki](https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki/Sideboards) about this firmware
+```bash
+# Make
+make clean && make -e VARIANT=VARIANT_PWM
 
-#### For the FOC controller design, see the following repository:
- - [bldc-motor-control-FOC](https://github.com/EFeru/bldc-motor-control-FOC)
+# PlatformIO
+pio run
+```
 
-#### Videos:
-<table>
-  <tr>
-    <td><a href="https://youtu.be/IgHCcj0NgWQ" title="Hovercar" rel="noopener"><img src="/docs/pictures/videos_preview/hovercar_intro.png"></a></td>
-    <td><a href="https://youtu.be/gtyqtc37r10" title="Cruise Control functionality" rel="noopener"><img src="/docs/pictures/videos_preview/cruise_control.png"></a></td>
-    <td><a href="https://youtu.be/jadD0M1VBoc" title="Hovercar pedal functionality" rel="noopener"><img src="/docs/pictures/videos_preview/hovercar_pedals.png"></a></td>
-  </tr>
-  <tr>
-    <td><a href="https://youtu.be/UnlbMrCkjnE" title="Commutation vs. FOC (constant speed)" rel="noopener"><img src="/docs/pictures/videos_preview/com_foc_const.png"></a></td> 
-    <td><a href="https://youtu.be/V-_L2w10wZk" title="Commutation vs. FOC (variable speed)" rel="noopener"><img src="/docs/pictures/videos_preview/com_foc_var.png"></a></td>       
-    <td><a href="https://youtu.be/tVj_lpsRirA" title="Reliable Serial Communication" rel="noopener"><img src="/docs/pictures/videos_preview/serial_com.png"></a></td>
-  </tr>
-</table>
+Тулчейн: arm-none-eabi-gcc. Выход: build/hover.bin
 
+## Ветки
 
----
-## Hardware
- 
-![mainboard_pinout](/docs/pictures/mainboard_pinout.png)
+### moped-dual
 
-The original Hardware supports two 4-pin cables that originally were connected to the two sideboards. They break out GND, 12/15V and USART2&3 of the Hoverboard mainboard. Both USART2&3 support UART, PWM, PPM, and iBUS input. Additionally, the USART2 can be used as 12bit ADC, while USART3 can be used for I2C. Note that while USART3 (right sideboard cable) is 5V tolerant, USART2 (left sideboard cable) is **not** 5V tolerant.
+Прошивка для мопеда с двумя контроллерами (передний и задний привод). Два входа: ADC триггеры газа/тормоза на левом кабеле + RC PWM пульт на правом кабеле.
 
-Typically, the mainboard brain is an [STM32F103RCT6](/docs/literature/[10]_STM32F103xC_datasheet.pdf), however some mainboards feature a [GD32F103RCT6](/docs/literature/[11]_GD32F103xx-Datasheet-Rev-2.7.pdf) which is also supported by this firmware.
+Режим: FOC + SPD (контроль скорости). PI-регулятор удерживает заданные обороты. При отпускании газа включается coasting — моторы не тормозят, колесо катится по инерции. При нажатии обоих триггеров одновременно — активное торможение до нуля.
 
-For the reverse-engineered schematics of the mainboard, see [20150722_hoverboard_sch.pdf](/docs/20150722_hoverboard_sch.pdf)
+Особенности:
+- DUAL_INPUTS: ADC (приоритет 0) + PWM (приоритет 1)
+- Accel/decel limiter с обратной связью по реальной скорости мотора
+- Dual trigger logic: forward/reverse триггеры с автоматическим определением направления
+- ADC_FORWARD_ONLY: опция для переднего привода — игнор reverse провода включая защиту от обрыва
+- ADC_ALTERNATE_CONNECT: переключение пинов ADC если провода подключены наоборот
+- Boost mode: зажать газ при включении — удвоение лимита скорости
+- Soft start/stop: плавное нарастание тока при нажатии газа
 
- 
----
-## FOC Firmware
- 
-In this firmware 3 control types are available, it can be set in config.h file via CTRL_TYP_SEL parameter:
-- Commutation (COM_CTRL)
-- Sinusoidal (SIN_CTRL)
-- Field Oriented Control (FOC_CTRL) with the following 3 control modes that can be set in config.h file with parameter CTRL_MOD_REQ:
-  - **VOLTAGE MODE(VLT_MODE)**: in this mode the controller applies a constant Voltage to the motors. Recommended for robotics applications or applications where a fast motor response is required.
-  - **SPEED MODE(SPD_MODE)**: in this mode a closed-loop controller realizes the input speed RPM target by rejecting any of the disturbance (resistive load) applied to the motor. Recommended for robotics applications or constant speed applications.
-  - **TORQUE MODE(TRQ_MODE)**: in this mode the input torque target is realized. This mode enables motor "freewheeling" when the torque target is `0`. Recommended for most applications with a sitting human driver.
+Ограничение SPD режима: PI-регулятор активно тормозит моторами если колесо едет быстрее заданной скорости (с горки, при толкании). Это принудительное замедление нельзя отключить в SPD режиме — оно заложено в BLDC-контроллере.
 
-#### Comparison between different control methods
+### spd-120
 
-|Control method| Complexity | Efficiency | Smoothness | Field Weakening | Freewheeling | Standstill hold |
-|--|--|--|--|--|--|--|
-|Commutation| - | - | ++ | n.a. | n.a. | + |
-|Sinusoidal| + | ++ | ++ | +++ | n.a. | + |
-|FOC VOLTAGE| ++ | +++ | ++ | ++ | n.a. | +<sup>(2)</sup> |
-|FOC SPEED| +++ | +++ | + | ++ | n.a. | +++ |
-|FOC TORQUE| +++ | +++ | +++ | ++ | +++<sup>(1)</sup> | n.a<sup>(2)</sup> |
+Прошивка без принудительного торможения при превышении скорости. Вместо FOC+SPD используется SIN+VLT (синусоидальное управление + режим напряжения).
 
-<sup>(1)</sup> By enabling `ELECTRIC_BRAKE_ENABLE` in `config.h`, the freewheeling amount can be adjusted using the `ELECTRIC_BRAKE_MAX` parameter.<br/>
-<sup>(2)</sup> The standstill hold functionality can be forced by enabling `STANDSTILL_HOLD_ENABLE` in `config.h`. 
+Режим: SIN + VLT. Контроллер просто подает напряжение на мотор без PI-регулятора скорости. Мотор крутится со скоростью, которую позволяет нагрузка и напряжение. Если колесо едет быстрее лимита (горка, толкание) — моторы не сопротивляются, колесо свободно крутится.
 
-In all FOC control modes, the controller features maximum motor speed and maximum motor current protection. This brings great advantages to fulfil the needs of many robotic applications while maintaining safe operation.
+Ограничение скорости реализовано софт-лимитером в main.c: когда измеренные обороты превышают N_MOT_MAX, команда напряжения пропорционально снижается (P-коэффициент = 3). Мотор не получает достаточно напряжения чтобы разгоняться дальше, но и не тормозит активно.
 
+Особенности:
+- Полный крутящий момент на любых оборотах ниже лимита
+- Мягкая отсечка сверху: напряжение плавно снижается при приближении к лимиту
+- Нет принудительного торможения: выше лимита мотор просто не подталкивает, колесо свободно
+- SIN контроль стабильнее FOC на некоторых моторах
+- Бинарник меньше (нет Clarke/Park трансформаций)
 
-### Field Weakening / Phase Advance
+Название "120" — исторически стоял лимит 120 rpm, сейчас 300.
 
- - By default the Field weakening is disabled. You can enable it in config.h file by setting the FIELD_WEAK_ENA = 1 
- - The Field Weakening is a linear interpolation from 0 to FIELD_WEAK_MAX or PHASE_ADV_MAX (depeding if FOC or SIN is selected, respectively)
- - The Field Weakening starts engaging at FIELD_WEAK_LO and reaches the maximum value at FIELD_WEAK_HI
- - The figure below shows different possible calibrations for Field Weakening / Phase Advance
- ![Field Weakening](/docs/pictures/FieldWeakening.png)
- 
- ⚠️ If you re-calibrate the Field Weakening please take all the safety measures! The motors can spin very fast!
- Power consumption will be highly increase and you can trigger the overvoltage protection of your BMS ⚠️
+## Разница между ветками
 
+Главный вопрос при выборе: нужно ли принудительное удержание скорости или нет.
 
-### Parameters
- - All the calibratable motor parameters can be found in the 'BLDC_controller_data.c'. I provided you with an already calibrated controller, but if you feel like fine tuning it feel free to do so 
- - The parameters are represented in Fixed-point data type for a more efficient code execution
- - For calibrating the fixed-point parameters use the [Fixed-Point Viewer](https://github.com/EFeru/FixedPointViewer) tool
- - The controller parameters are given in [this table](https://github.com/EFeru/bldc-motor-control-FOC/blob/master/02_Figures/paramTable.png)
+moped-dual (FOC+SPD): мотор активно держит заданную скорость в обе стороны. Если колесо пытается ехать быстрее — PI тормозит. Если медленнее — PI подталкивает. Хорошо для точного контроля, плохо для свободного наката.
 
+spd-120 (SIN+VLT): мотор просто получает напряжение. Ниже лимита — полный газ. Выше лимита — напряжение снижается, но мотор не тормозит. Хорошо для свободного наката и езды с горки, менее точный контроль скорости.
 
-### FOC Webview
+## Остальные ветки (архивные)
 
-To explore the controller without a Matlab/Simulink installation click on the link below:
-
-[https://eferu.github.io/bldc-motor-control-FOC/](https://eferu.github.io/bldc-motor-control-FOC/)
-
----
-## Example Variants
-
-- **VARIANT_ADC**: The motors are controlled by two potentiometers connected to the Left sensor cable (long wired)
-- **VARIANT_USART**: The motors are controlled via serial protocol (e.g. on USART3 right sensor cable, the short wired cable). The commands can be sent from an Arduino. Check out the [hoverserial.ino](/Arduino/hoverserial) as an example sketch.
-- **VARIANT_NUNCHUK**: Wii Nunchuk offers one hand control for throttle, braking and steering. This was one of the first input device used for electric armchairs or bottle crates.
-- **VARIANT_PPM**: RC remote control with PPM Sum signal.
-- **VARIANT_PWM**: RC remote control with PWM signal.
-- **VARIANT_IBUS**: RC remote control with Flysky iBUS protocol connected to the Left sensor cable.
-- **VARIANT_HOVERCAR**: The motors are controlled by two pedals brake and throttle. Reverse is engaged by double tapping on the brake pedal at standstill. See [HOVERCAR wiki](https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki/Variant-HOVERCAR).
-- **VARIANT_HOVERBOARD**: The mainboard reads the two sideboards data. The sideboards need to be flashed with the hacked version. The balancing controller is **not** yet implemented.
-- **VARIANT_TRANSPOTTER**: This is for transpotter build, which is a hoverboard based transportation system. For more details on how to build it check [here](https://github.com/NiklasFauth/hoverboard-firmware-hack/wiki/Build-Instruction:-TranspOtter) and [here](https://hackaday.io/project/161891-transpotter-ng).
-- **VARIANT_SKATEBOARD**: This is for skateboard build, controlled using an RC remote with PWM signal connected to the right sensor cable.
-
-Of course the firmware can be further customized for other needs or projects.
-
-
----
-## Projects and Links
-
-- **Original firmware:** [https://github.com/lucysrausch/hoverboard-firmware-hack](https://github.com/lucysrausch/hoverboard-firmware-hack)
-- **[Candas](https://github.com/Candas1/) Hoverboard Web Serial Control:** [https://github.com/Candas1/Hoverboard-Web-Serial-Control](https://github.com/Candas1/Hoverboard-Web-Serial-Control)
-- **[RoboDurden's](https://github.com/RoboDurden) online compiler:** [https://pionierland.de/hoverhack/](https://pionierland.de/hoverhack/) 
-- **Hoverboard hack for AT32F403RCT6 mainboards:** [https://github.com/cloidnerux/hoverboard-firmware-hack](https://github.com/cloidnerux/hoverboard-firmware-hack)
-- **Hoverboard hack for split mainboards:** [https://github.com/flo199213/Hoverboard-Firmware-Hack-Gen2](https://github.com/flo199213/Hoverboard-Firmware-Hack-Gen2)
-- **Hoverboard hack from BiPropellant:** [https://github.com/bipropellant](https://github.com/bipropellant)
-- **Hoverboard breakout boards:** [https://github.com/Jana-Marie/hoverboard-breakout](https://github.com/Jana-Marie/hoverboard-breakout)
-
-<a/>
-
-- **Bobbycar** [https://github.com/larsmm/hoverboard-firmware-hack-FOC-bbcar](https://github.com/larsmm/hoverboard-firmware-hack-FOC-bbcar)
-- **Wheel chair:** [https://github.com/Lahorde/steer_speed_ctrl](https://github.com/Lahorde/steer_speed_ctrl)
-- **TranspOtterNG:** [https://github.com/Jan--Henrik/transpOtterNG](https://github.com/Jan--Henrik/transpOtterNG)
-- **Hoverboard driver for ROS:** [https://github.com/alex-makarov/hoverboard-driver](https://github.com/alex-makarov/hoverboard-driver)
-- **Ongoing OneWheel project:** [https://forum.esk8.news/t/yet-another-hoverboard-to-onewheel-project/60979/14](https://forum.esk8.news/t/yet-another-hoverboard-to-onewheel-project/60979/14)
-- **ST Community:** [Custom FOC motor control](https://community.st.com/s/question/0D50X0000B28qTDSQY/custom-foc-control-current-measurement-dma-timer-interrupt-needs-review)
-
-<a/>
-
-- **Telegram Community:** If you are an enthusiast join our [Hooover Telegram Group](https://t.me/joinchat/BHWO_RKu2LT5ZxEkvUB8uw)
-
----
-## Stargazers
-
-[![Stargazers over time](https://starchart.cc/EFeru/hoverboard-firmware-hack-FOC.svg)](https://starchart.cc/EFeru/hoverboard-firmware-hack-FOC)
-
----
-## Contributions
-
-Every contribution to this repository is highly appreciated! Feel free to create pull requests to improve this firmware as ultimately you are going to help everyone. 
-
-If you want to donate to keep this firmware updated, please use the link below:
-
-[![paypal](https://www.paypalobjects.com/en_US/NL/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=CU2SWN2XV9SCY&currency_code=EUR&source=url)
-
----
+- moped — ранняя версия мопеда, одиночный вход, FOC+SPD
+- kart — карт, FOC+VLT, лимит 250 rpm
+- vlt — чистый FOC+VLT, лимит 150 rpm
+- gusya — FOC+VLT, лимит 350 rpm, быстрый режим
+- devil — FOC+TRQ (торк режим), лимит 150 rpm
+- spd, spd60, spd_accel, spd_beep — варианты FOC+SPD с разными лимитами
+- pwm — FOC+SPD с PWM входом и SPEED_LIMIT_MARGIN
+- main — оригинальный форк, сломан (не компилируется)

@@ -135,12 +135,12 @@
 */
 #define COM_CTRL        0               // [-] Commutation Control Type
 #define SIN_CTRL        1               // [-] Sinusoidal Control Type
-#define FOC_CTRL        2               // [-] Field Oriented Control (FOC) Type
+#define FOC_CTRL        2                [-] Field Oriented Control (FOC) Type
 
 #define OPEN_MODE       0               // [-] OPEN mode
 #define VLT_MODE        1               // [-] VOLTAGE mode
 #define SPD_MODE        2               // [-] SPEED mode
-#define TRQ_MODE        3               // [-] TORQUE mode
+#define TRQ_MODE        3                [-] TORQUE mode
 
 // Enable/Disable Motor
 #define MOTOR_LEFT_ENA                  // [-] Enable LEFT motor.  Comment-out if this motor is not needed to be operational
